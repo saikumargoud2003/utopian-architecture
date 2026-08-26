@@ -195,6 +195,55 @@ class User(db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
+class LeadershipMember(db.Model):
+    __tablename__ = 'leadership_members'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    position = db.Column(db.String(120), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<LeadershipMember {self.name}>"
+
+class SiteSetting(db.Model):
+    __tablename__ = 'site_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(120), nullable=False, unique=True)
+    value = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SiteSetting {self.key}>"
+
+DEFAULT_SITE_LOGO = '/static/img/logo/logo.png'
+
+
+def get_site_setting(key, default=''):
+    setting = SiteSetting.query.filter_by(key=key).first()
+    if setting and setting.value not in (None, ''):
+        return setting.value.strip()
+    return default
+
+
+def set_site_setting(key, value):
+    setting = SiteSetting.query.filter_by(key=key).first()
+    if setting is None:
+        setting = SiteSetting(key=key, value=value)
+        db.session.add(setting)
+    else:
+        setting.value = value
+    db.session.commit()
+    return value
+
+
+def get_site_logo_url():
+    logo_url = get_site_setting('site_logo_url', DEFAULT_SITE_LOGO)
+    return logo_url if logo_url else DEFAULT_SITE_LOGO
+
+
 if os.getenv('FLASK_ENV') != 'production':
     with app.app_context():
         db.create_all()
@@ -216,6 +265,14 @@ if os.getenv('FLASK_ENV') != 'production':
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error seeding admin user: {e}")
+
+        try:
+            if SiteSetting.query.filter_by(key='site_logo_url').first() is None:
+                db.session.add(SiteSetting(key='site_logo_url', value=DEFAULT_SITE_LOGO))
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error seeding site logo setting: {e}")
 
         # Ensure dynamic columns exist in SQLite table
         for col_name, col_type in [("gallery_images", "TEXT"), ("category_id", "INTEGER"), ("subcategory_id", "INTEGER")]:
@@ -705,6 +762,17 @@ if os.getenv('FLASK_ENV') != 'production':
                 db.session.add(BlogPost(**post))
             db.session.commit()
 
+        if LeadershipMember.query.count() == 0:
+            default_members = [
+                {"name": "Abdul Qadir", "position": "Founder & Principal Designer", "image_url": "https://placehold.co/400x500"},
+                {"name": "Maya Sharma", "position": "Design Lead", "image_url": "https://placehold.co/400x500"},
+                {"name": "Rohit Singh", "position": "Project Architect", "image_url": "https://placehold.co/400x500"},
+                {"name": "Aisha Khan", "position": "Interior Stylist", "image_url": "https://placehold.co/400x500"}
+            ]
+            for member in default_members:
+                db.session.add(LeadershipMember(**member))
+            db.session.commit()
+
 # --- USER ROUTES ---
 
 @app.route('/')
@@ -742,7 +810,15 @@ def home():
 @app.route('/about')
 def about():
     """Renders the About Page."""
-    return render_template('pages/about.html')
+    leadership_members = LeadershipMember.query.order_by(LeadershipMember.id.asc()).all()
+    if not leadership_members:
+        leadership_members = [
+            {"name": "Abdul Qadir", "position": "Founder & Principal Designer", "image_url": "https://placehold.co/400x500"},
+            {"name": "Maya Sharma", "position": "Design Lead", "image_url": "https://placehold.co/400x500"},
+            {"name": "Rohit Singh", "position": "Project Architect", "image_url": "https://placehold.co/400x500"},
+            {"name": "Aisha Khan", "position": "Interior Stylist", "image_url": "https://placehold.co/400x500"},
+        ]
+    return render_template('pages/about.html', leadership_members=leadership_members)
 
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
@@ -871,6 +947,14 @@ def blog_detail(slug):
     categories = BlogCategory.query.all()
     return render_template('pages/blog_detail.html', post=post, recent_posts=recent_posts, categories=categories)
 
+def _is_catalog_related_category(category_name):
+    """Return True for categories that belong to the shop/catalog area rather than project galleries."""
+    value = (category_name or '').strip().lower()
+    if not value:
+        return False
+    reserved_tokens = {'catalog', 'catalogue', 'shop', 'product', 'products', 'furniture', 'decor'}
+    return any(token in value for token in reserved_tokens)
+
 @app.route('/projects')
 def projects():
     """Renders the Projects Page."""
@@ -880,6 +964,9 @@ def projects():
     gallery_items = []
     for img in images:
         cat_name = img.category or "other"
+        if _is_catalog_related_category(cat_name):
+            continue
+
         f_class = cat_name.lower().replace(" ", "-")
         
         # Build filter classes list (e.g. for client side filtering)
@@ -901,26 +988,31 @@ def projects():
         
     db_cats = PortfolioCategory.query.order_by(PortfolioCategory.position).all()
     if db_cats:
-        # Ensure gallery icons are updated if they are still fa-image or fontawesome
-        if any(c.icon_class == 'fa-image' or not c.icon_class or not ('/' in c.icon_class or '.' in c.icon_class) for c in db_cats):
-            icon_mapping = {
-                'residential': 'img/gallery_icons/1.png',
-                'commercial': 'img/gallery_icons/2.png',
-                'living-room': 'img/gallery_icons/3.png',
-                'kitchen': 'img/gallery_icons/4.png',
-                'bedroom': 'img/gallery_icons/5.png',
-                'sofaset': 'img/gallery_icons/6.png',
-                'other': 'img/gallery_icons/7.png',
-                'cafe': 'img/gallery_icons/8.png',
-                'hotel': 'img/gallery_icons/9.png',
-                'restaurant': 'img/gallery_icons/10.png',
-                'office': 'img/gallery_icons/11.png',
-                'retail': 'img/gallery_icons/12.png',
-            }
+        # Keep blank icons blank for custom categories. Only repair legacy built-ins when
+        # they were previously using an invalid placeholder, but do not assign defaults to
+        # newly-added categories that intentionally leave the icon unset.
+        invalid_icon_values = {'fa-image', 'img/gallery_icons/default_icons.png', '/static/img/gallery_icons/default_icons.png'}
+        if any((c.icon_class in invalid_icon_values or not c.icon_class or not ('/' in c.icon_class or '.' in c.icon_class)) and bool(c.slug) for c in db_cats):
             for c in db_cats:
                 slug_key = c.slug.lower() if c.slug else ''
-                # If there's a specific icon in the mapping, use it, else default
-                c.icon_class = icon_mapping.get(slug_key, 'img/gallery_icons/default_icons.png')
+                if not c.icon_class or c.icon_class in invalid_icon_values:
+                    if slug_key in {'residential', 'commercial', 'living-room', 'kitchen', 'bedroom', 'sofaset', 'other', 'cafe', 'hotel', 'restaurant', 'office', 'retail'}:
+                        c.icon_class = {
+                            'residential': 'img/gallery_icons/1.png',
+                            'commercial': 'img/gallery_icons/2.png',
+                            'living-room': 'img/gallery_icons/3.png',
+                            'kitchen': 'img/gallery_icons/4.png',
+                            'bedroom': 'img/gallery_icons/5.png',
+                            'sofaset': 'img/gallery_icons/6.png',
+                            'other': 'img/gallery_icons/7.png',
+                            'cafe': 'img/gallery_icons/8.png',
+                            'hotel': 'img/gallery_icons/9.png',
+                            'restaurant': 'img/gallery_icons/10.png',
+                            'office': 'img/gallery_icons/11.png',
+                            'retail': 'img/gallery_icons/12.png',
+                        }.get(slug_key)
+                    else:
+                        c.icon_class = ''
             try:
                 db.session.commit()
             except:
@@ -939,6 +1031,9 @@ def portfolio():
     gallery_items = []
     for img in images:
         cat_name = img.category or "other"
+        if _is_catalog_related_category(cat_name):
+            continue
+
         f_class = cat_name.lower().replace(" ", "-")
         
         # Build filter classes list (e.g. for client side filtering)
@@ -947,7 +1042,7 @@ def portfolio():
             filter_classes.append('residential')
         elif f_class in ['office', 'restaurant', 'cafe', 'retail', 'commercial']:
             filter_classes.append('commercial')
-            
+             
         filter_class_str = " ".join(filter_classes)
 
         gallery_items.append({
@@ -960,8 +1055,8 @@ def portfolio():
         
     db_cats = PortfolioCategory.query.order_by(PortfolioCategory.position).all()
     if db_cats:
-        # Ensure gallery icons are updated if they are still fa-image or fontawesome
-        if any(c.icon_class == 'fa-image' or not c.icon_class or not ('/' in c.icon_class or '.' in c.icon_class) for c in db_cats):
+        invalid_icon_values = {'fa-image', 'img/gallery_icons/default_icons.png', '/static/img/gallery_icons/default_icons.png'}
+        if any((c.icon_class in invalid_icon_values or not c.icon_class or not ('/' in c.icon_class or '.' in c.icon_class)) and bool(c.slug) for c in db_cats):
             icon_mapping = {
                 'residential': 'img/gallery_icons/1.png',
                 'commercial': 'img/gallery_icons/2.png',
@@ -978,11 +1073,13 @@ def portfolio():
                 'bar': 'img/gallery_icons/13.png',
                 'outdoor': 'img/gallery_icons/14.png'
             }
-            for idx, c in enumerate(db_cats, start=1):
-                if c.slug in icon_mapping:
-                    c.icon_class = icon_mapping[c.slug]
-                else:
-                    c.icon_class = f'img/gallery_icons/{idx}.png'
+            for c in db_cats:
+                slug_key = (c.slug or '').lower()
+                if not c.icon_class or c.icon_class in invalid_icon_values:
+                    if slug_key in icon_mapping:
+                        c.icon_class = icon_mapping[slug_key]
+                    elif c.slug:
+                        c.icon_class = ''
             try:
                 db.session.commit()
             except Exception:
@@ -1088,6 +1185,12 @@ def dynamic_page(slug):
     except TemplateNotFound:
         abort(404)
 
+
+@app.context_processor
+def inject_site_settings():
+    return {'site_logo_url': get_site_logo_url}
+
+
 # --- ADMIN PANEL ROUTES ---
 
 def login_required(f):
@@ -1122,6 +1225,43 @@ def admin_logout():
     session.pop('admin_logged_in', None)
     flash("Logged out successfully.", "success")
     return redirect(url_for('admin_login', next='/admin'))
+
+
+@app.route('/admin/site-settings', methods=['GET', 'POST'])
+@login_required
+def admin_site_settings():
+    current_logo = get_site_logo_url()
+
+    if request.method == 'POST':
+        if request.form.get('reset_logo') == '1':
+            set_site_setting('site_logo_url', DEFAULT_SITE_LOGO)
+            flash('The default logo has been restored.', 'success')
+            return redirect(url_for('admin_site_settings'))
+
+        logo_file = request.files.get('logo')
+        logo_url = request.form.get('logo_url', '').strip()
+
+        if logo_file and logo_file.filename:
+            if not allowed_file(logo_file.filename):
+                flash('Please upload a valid image file for the logo.', 'danger')
+                return redirect(url_for('admin_site_settings'))
+            uploaded_url = upload_image_to_cloudinary(logo_file, folder_name='site-branding')
+            if not uploaded_url:
+                flash('Logo upload failed. Please try a different image.', 'danger')
+                return redirect(url_for('admin_site_settings'))
+            set_site_setting('site_logo_url', uploaded_url)
+            flash('Logo updated successfully.', 'success')
+            return redirect(url_for('admin_site_settings'))
+
+        if logo_url:
+            set_site_setting('site_logo_url', logo_url)
+            flash('Logo URL saved successfully.', 'success')
+            return redirect(url_for('admin_site_settings'))
+
+        flash('Please upload a new logo or provide a logo URL.', 'warning')
+
+    return render_template('admin/site_settings.html', current_logo=current_logo)
+
 
 @app.route('/admin')
 @login_required
@@ -1183,6 +1323,101 @@ def admin_delete_submission(id):
         app.logger.error(f"Error deleting submission: {e}")
         flash("Failed to delete the submission.", "danger")
     return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/leadership')
+@login_required
+def admin_leadership():
+    """Displays the team/leadership list editable from the admin panel."""
+    try:
+        members = LeadershipMember.query.order_by(LeadershipMember.id.asc()).all()
+        return render_template('admin/leadership.html', members=members)
+    except Exception as e:
+        app.logger.error(f"Error fetching leadership members: {e}")
+        return "An error occurred while loading the leadership members. Please verify database setup.", 500
+
+@app.route('/admin/leadership/add', methods=['POST'])
+@login_required
+def admin_add_leadership_member():
+    name = request.form.get('name', '').strip()
+    position = request.form.get('position', '').strip()
+    image_file = request.files.get('image')
+    image_url = request.form.get('image_url', '').strip()
+
+    if not name or not position:
+        flash('Name and position are required.', 'danger')
+        return redirect(url_for('admin_leadership'))
+
+    uploaded_image_url = None
+    if image_file and image_file.filename:
+        uploaded_image_url = upload_image_to_cloudinary(image_file, folder_name='leadership')
+        if not uploaded_image_url:
+            flash('Please upload a valid image file.', 'danger')
+            return redirect(url_for('admin_leadership'))
+    elif image_url:
+        uploaded_image_url = image_url
+    else:
+        uploaded_image_url = 'https://placehold.co/400x500'
+
+    try:
+        member = LeadershipMember(name=name, position=position, image_url=uploaded_image_url)
+        db.session.add(member)
+        db.session.commit()
+        flash('Leadership member added successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error adding leadership member: {e}")
+        flash('Failed to add leadership member.', 'danger')
+
+    return redirect(url_for('admin_leadership'))
+
+@app.route('/admin/leadership/edit/<int:id>', methods=['POST'])
+@login_required
+def admin_edit_leadership_member(id):
+    member = LeadershipMember.query.get_or_404(id)
+    member.name = request.form.get('name', member.name).strip()
+    member.position = request.form.get('position', member.position).strip()
+
+    image_file = request.files.get('image')
+    image_url = request.form.get('image_url', '').strip()
+
+    if image_file and image_file.filename:
+        uploaded_image_url = upload_image_to_cloudinary(image_file, folder_name='leadership')
+        if not uploaded_image_url:
+            flash('Please upload a valid image file.', 'danger')
+            return redirect(url_for('admin_leadership'))
+        member.image_url = uploaded_image_url
+    elif image_url:
+        member.image_url = image_url
+    elif member.image_url is None or member.image_url == '':
+        member.image_url = 'https://placehold.co/400x500'
+
+    if not member.name or not member.position:
+        flash('Name and position are required.', 'danger')
+        return redirect(url_for('admin_leadership'))
+
+    try:
+        db.session.commit()
+        flash('Leadership member updated successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating leadership member: {e}")
+        flash('Failed to update leadership member.', 'danger')
+
+    return redirect(url_for('admin_leadership'))
+
+@app.route('/admin/leadership/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_leadership_member(id):
+    member = LeadershipMember.query.get_or_404(id)
+    try:
+        db.session.delete(member)
+        db.session.commit()
+        flash('Leadership member deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting leadership member: {e}")
+        flash('Failed to delete leadership member.', 'danger')
+    return redirect(url_for('admin_leadership'))
 
 @app.route('/admin/slider')
 @login_required
@@ -1738,24 +1973,39 @@ def admin_portfolio_categories():
 def add_portfolio_category():
     name = request.form.get('name')
     slug = request.form.get('slug')
-    icon_class = request.form.get('icon_class') or 'img/gallery_icons/default_icons.png'
     position = request.form.get('position', 0, type=int)
-    
-    file = request.files.get('image')
+
+    # Icon inputs: file, url, or css class (priority: uploaded file -> icon_url -> css class)
+    icon_file = request.files.get('icon')
+    icon_url_field = (request.form.get('icon_url') or '').strip()
+    icon_class_field = (request.form.get('icon_class') or '').strip()
+
+    image_file = request.files.get('image')
     image_url = None
-    if file and file.filename != '':
-        image_url = upload_image_to_cloudinary(file, folder="portfolio_categories")
-        
+    if image_file and image_file.filename != '':
+        image_url = upload_image_to_cloudinary(image_file, folder="portfolio_categories")
+
     if not image_url:
         flash('Background image is required.', 'danger')
         return redirect(url_for('admin_portfolio_categories'))
+
+    # Determine stored icon value
+    icon_value = ''
+    if icon_file and icon_file.filename != '':
+        uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons")
+        if uploaded_icon:
+            icon_value = uploaded_icon
+    elif icon_url_field:
+        icon_value = icon_url_field
+    elif icon_class_field:
+        icon_value = icon_class_field
 
     show_on_projects = ('show_on_projects' in request.form)
 
     cat = PortfolioCategory(
         name=name,
         slug=slug,
-        icon_class=icon_class,
+        icon_class=icon_value,
         image_url=image_url,
         position=position,
         show_on_projects=show_on_projects
@@ -1771,16 +2021,53 @@ def edit_portfolio_category(id):
     cat = PortfolioCategory.query.get_or_404(id)
     cat.name = request.form.get('name')
     cat.slug = request.form.get('slug')
-    cat.icon_class = request.form.get('icon_class') or cat.icon_class
     cat.position = request.form.get('position', 0, type=int)
     cat.show_on_projects = ('show_on_projects' in request.form)
-    
+
+    # Icon handling: uploaded file / icon_url / css class / remove
+    remove_icon = ('remove_icon' in request.form)
+    icon_file = request.files.get('icon')
+    icon_url_field = (request.form.get('icon_url') or '').strip()
+    icon_class_field = (request.form.get('icon_class') or '').strip()
+
+    if remove_icon:
+        # delete existing icon if stored locally/cloudinary and clear
+        if cat.icon_class:
+            try:
+                delete_image_from_cloudinary(cat.icon_class)
+            except Exception:
+                pass
+        cat.icon_class = ''
+    else:
+        if icon_file and icon_file.filename != '':
+            uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons")
+            if uploaded_icon:
+                # delete old icon if it looks like a stored file
+                if cat.icon_class:
+                    try:
+                        delete_image_from_cloudinary(cat.icon_class)
+                    except Exception:
+                        pass
+                cat.icon_class = uploaded_icon
+            else:
+                flash('Icon upload failed. Please try a different file.', 'danger')
+                return redirect(url_for('admin_portfolio_categories'))
+        elif icon_url_field:
+            # if a URL provided, set it directly (do not delete existing stored image automatically)
+            cat.icon_class = icon_url_field
+        elif icon_class_field:
+            cat.icon_class = icon_class_field
+
+    # Handle background image update
     file = request.files.get('image')
     if file and file.filename != '':
         new_image_url = upload_image_to_cloudinary(file, folder="portfolio_categories")
         if new_image_url:
             if cat.image_url:
-                delete_image_from_cloudinary(cat.image_url)
+                try:
+                    delete_image_from_cloudinary(cat.image_url)
+                except Exception:
+                    pass
             cat.image_url = new_image_url
 
     db.session.commit()

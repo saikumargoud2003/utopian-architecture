@@ -1,0 +1,49 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}Site Logo Settings{% endblock %}
+
+{% block content %}
+<div class="admin-card admin-card-wide">
+    <div class="admin-card-header">
+        <div>
+            <p class="admin-eyebrow">Branding</p>
+            <h2>Site Logo</h2>
+        </div>
+    </div>
+
+    <div class="admin-card-body">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="admin-alert admin-alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('admin_site_settings') }}" method="post" enctype="multipart/form-data" class="admin-form">
+            <div class="admin-form-grid admin-form-grid-2">
+                <div class="admin-form-group">
+                    <label for="logo">Upload logo image</label>
+                    <input type="file" id="logo" name="logo" accept="image/*" class="admin-input">
+                    <small>Upload your logo directly. JPG, PNG, GIF, SVG, WEBP, and other common image types are supported.</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label for="logo_url">Or enter a direct image URL</label>
+                    <input type="url" id="logo_url" name="logo_url" placeholder="https://example.com/logo.png" class="admin-input">
+                </div>
+            </div>
+
+            <div class="logo-preview-box" style="margin-top: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; background: #f8fafc; display: inline-block; max-width: 100%;">
+                <div class="logo-preview-label" style="font-size: 0.8rem; color: #475569; font-weight: 600; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;">Current Logo</div>
+                <img src="{{ site_logo_url() }}" alt="Current site logo" class="logo-preview-image" style="max-width: 220px; max-height: 120px; object-fit: contain; border-radius: 10px; background: white; padding: 0.75rem; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);">
+            </div>
+
+            <div class="admin-actions">
+                <button type="submit" class="admin-btn admin-btn-primary">Save Logo</button>
+                <button type="submit" name="reset_logo" value="1" class="admin-btn admin-btn-secondary">Use Default Logo</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

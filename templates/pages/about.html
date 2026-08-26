@@ -538,66 +538,23 @@
           </div>
           <div class="teams-body">
             <div class="row gy-4">
-              <div class="col-lg-3 col-md-6">
-                <div
-                  class="teams-box p-2 border border-2 border-grey position-relative overflow-hidden"
-                >
-                  <div class="teams-image">
-                    <img src="https://placehold.co/400x500" alt="teams image" />
-                  </div>
-                  <div
-                    class="teams-info position-absolute text-center mx-auto w-100 white pb-4"
-                  >
-                    <h5 class="mb-0 white">Nelly Gongunk</h5>
-                    <span>Managing Director</span>
+              {% for member in leadership_members %}
+                <div class="col-lg-3 col-md-6">
+                  <div class="teams-box p-2 border border-2 border-grey position-relative overflow-hidden {% if loop.index is even %}mt-md-4{% endif %}">
+                    <div class="teams-image">
+                      <img src="{{ member.image_url or 'https://placehold.co/400x500' }}" alt="{{ member.name }}" />
+                    </div>
+                    <div class="teams-info position-absolute text-center mx-auto w-100 white pb-4">
+                      <h5 class="mb-0 white">{{ member.name }}</h5>
+                      <span>{{ member.position }}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="col-lg-3 col-md-6">
-                <div
-                  class="teams-box p-2 border border-2 border-grey position-relative overflow-hidden mt-md-4"
-                >
-                  <div class="teams-image">
-                    <img src="https://placehold.co/400x500" alt="teams image" />
-                  </div>
-                  <div
-                    class="teams-info position-absolute text-center mx-auto w-100 white pb-4"
-                  >
-                    <h5 class="mb-0 white">Ralph Waldo</h5>
-                    <span>Officer</span>
-                  </div>
+              {% else %}
+                <div class="col-12 text-center py-4">
+                  <p class="mb-0">No leadership members available.</p>
                 </div>
-              </div>
-              <div class="col-lg-3 col-md-6">
-                <div
-                  class="teams-box p-2 border border-2 border-grey position-relative overflow-hidden"
-                >
-                  <div class="teams-image">
-                    <img src="https://placehold.co/400x500" alt="teams image" />
-                  </div>
-                  <div
-                    class="teams-info position-absolute text-center mx-auto w-100 white pb-4"
-                  >
-                    <h5 class="mb-0 white">Natalia Ford</h5>
-                    <span>Architect</span>
-                  </div>
-                </div>
-              </div>
-              <div class="col-lg-3 col-md-6">
-                <div
-                  class="teams-box p-2 border border-2 border-grey position-relative overflow-hidden mt-md-4"
-                >
-                  <div class="teams-image">
-                    <img src="https://placehold.co/400x500" alt="teams image" />
-                  </div>
-                  <div
-                    class="teams-info position-absolute text-center mx-auto w-100 white pb-4"
-                  >
-                    <h5 class="mb-0 white">Antonio Ulag</h5>
-                    <span>Architect </span>
-                  </div>
-                </div>
-              </div>
+              {% endfor %}
             </div>
           </div>
         </div>

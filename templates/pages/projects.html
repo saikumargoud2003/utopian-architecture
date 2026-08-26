@@ -109,10 +109,11 @@
               <div class="explore-card position-relative overflow-hidden">
                  <img src="{{ cat.image_url if cat.image_url and (cat.image_url.startswith('http') or cat.image_url.startswith('/') or cat.image_url.startswith('data:')) else (url_for('static', filename=cat.image_url) if cat.image_url else '') }}" alt="{{ cat.name }}" class="w-100 h-100 object-fit-cover">
                  <div class="explore-card-overlay">
-                    {% if cat.icon_class and ('/' in cat.icon_class or '.' in cat.icon_class or cat.icon_class.startswith('img')) %}
+                    {% set show_cat_icon = cat.icon_class and cat.icon_class != 'img/gallery_icons/default_icons.png' and cat.icon_class != '/static/img/gallery_icons/default_icons.png' %}
+                    {% if show_cat_icon and ('/' in cat.icon_class or '.' in cat.icon_class or cat.icon_class.startswith('img')) %}
                     <img src="{{ cat.icon_class if (cat.icon_class.startswith('http') or cat.icon_class.startswith('/') or cat.icon_class.startswith('data:')) else url_for('static', filename=cat.icon_class) }}" alt="{{ cat.name|striptags }}" class="category-card-icon">
-                    {% else %}
-                    <i class="fa {{ cat.icon_class or 'fa-image' }} category-card-icon"></i>
+                    {% elif show_cat_icon %}
+                    <i class="fa {{ cat.icon_class }} category-card-icon"></i>
                     {% endif %}
                     <h6 class="category-card-title mb-0 text-start">{{ cat.name|safe }}</h6>
                  </div>

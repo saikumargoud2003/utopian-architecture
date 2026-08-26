@@ -50,6 +50,16 @@
                     </a>
                 </li>
                 <li class="admin-menu-item">
+                    <a href="{{ url_for('admin_leadership') }}" class="admin-menu-link {% if request.endpoint == 'admin_leadership' %}active{% endif %}">
+                        <i class="fa-solid fa-user-tie"></i> Leadership
+                    </a>
+                </li>
+                <li class="admin-menu-item">
+                    <a href="{{ url_for('admin_site_settings') }}" class="admin-menu-link {% if request.endpoint == 'admin_site_settings' %}active{% endif %}">
+                        <i class="fa-solid fa-image-portrait"></i> Site Logo
+                    </a>
+                </li>
+                <li class="admin-menu-item">
                     <a href="{{ url_for('admin_categories') }}" class="admin-menu-link {% if request.endpoint == 'admin_categories' %}active{% endif %}">
                         <i class="fa-solid fa-list"></i> Categories
                     </a>
