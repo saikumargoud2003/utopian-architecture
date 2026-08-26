@@ -50,6 +50,11 @@
                     </a>
                 </li>
                 <li class="admin-menu-item">
+                    <a href="{{ url_for('admin_ongoing_projects') }}" class="admin-menu-link {% if request.endpoint == 'admin_ongoing_projects' %}active{% endif %}">
+                        <i class="fa-solid fa-diagram-project"></i> Ongoing Projects
+                    </a>
+                </li>
+                <li class="admin-menu-item">
                     <a href="{{ url_for('admin_leadership') }}" class="admin-menu-link {% if request.endpoint == 'admin_leadership' %}active{% endif %}">
                         <i class="fa-solid fa-user-tie"></i> Leadership
                     </a>

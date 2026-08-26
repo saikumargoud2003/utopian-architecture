@@ -66,7 +66,14 @@
                     </span>
                     {% endif %}
                     
-                    <div style="position: relative; width: 100%; margin-bottom: 15px; border-radius: 8px; overflow: hidden; height: 200px; background-image: url('{{ cat.image_url if cat.image_url and (cat.image_url.startswith('http') or cat.image_url.startswith('/') or cat.image_url.startswith('data:')) else (url_for('static', filename=cat.image_url) if cat.image_url else '') }}'); background-size: cover; background-position: center;">
+                    <div style="position: relative; width: 100%; margin-bottom: 15px; border-radius: 8px; overflow: hidden; height: 200px; background: #eae5df;">
+                        {% if cat.video_url %}
+                        <video autoplay muted loop playsinline poster="{{ cat.image_url if cat.image_url else '' }}" style="width: 100%; height: 100%; object-fit: cover; display: block; background: #000;">
+                            <source src="{{ cat.video_url }}" type="video/mp4">
+                        </video>
+                        {% elif cat.image_url %}
+                        <div style="width: 100%; height: 100%; background-image: url('{{ cat.image_url if cat.image_url and (cat.image_url.startswith('http') or cat.image_url.startswith('/') or cat.image_url.startswith('data:')) else (url_for('static', filename=cat.image_url) if cat.image_url else '') }}'); background-size: cover; background-position: center;"></div>
+                        {% endif %}
                         <span style="position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.75); color: white; padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; backdrop-filter: blur(4px);">
                             {% set show_icon = cat.icon_class and cat.icon_class != 'img/gallery_icons/default_icons.png' and cat.icon_class != '/static/img/gallery_icons/default_icons.png' %}
                             {% if show_icon and ('/' in cat.icon_class or '.' in cat.icon_class or cat.icon_class.startswith('img')) %}
@@ -96,6 +103,7 @@
                                 data-position="{{ cat.position }}"
                                 data-show-on-projects="{{ 'true' if (cat.show_on_projects or cat.show_on_projects is none) else 'false' }}"
                                 data-icon="{{ cat.icon_class | e }}"
+                                data-video="{{ cat.video_url | e }}"
                                 onclick="openEditModal(this)"
                                 style="padding: 8px 15px; font-size: 13px; background: transparent; border: 1px solid var(--admin-accent); color: var(--admin-accent); border-radius: 6px;">
                             <i class="fa-solid fa-pen"></i> Edit
@@ -164,9 +172,9 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px;">
                     <div>
-                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Background Image <span style="color: #dc3545">*</span></label>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Background Image</label>
                         <div style="position: relative; width: 100%; border: 1px dashed #ccc; border-radius: 8px; padding: 15px; background: rgb(250, 250, 250); cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.borderColor='var(--admin-accent)'; this.style.background='rgba(144, 110, 73, 0.02)';" onmouseout="this.style.borderColor='#ccc'; this.style.background='#fafafa';">
-                            <input type="file" id="add-cat-image" name="image" accept="image/*" required style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; z-index: 10;" onchange="document.getElementById('add-file-name-display').innerText = this.files[0] ? this.files[0].name : 'Choose an image or drag &amp; drop'; document.getElementById('add-file-name-display').style.color = this.files[0] ? 'var(--admin-accent)' : '#888';">
+                            <input type="file" id="add-cat-image" name="image" accept="image/*" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; z-index: 10;" onchange="document.getElementById('add-file-name-display').innerText = this.files[0] ? this.files[0].name : 'Choose an image or drag &amp; drop'; document.getElementById('add-file-name-display').style.color = this.files[0] ? 'var(--admin-accent)' : '#888';">
                             <div style="pointer-events: none; display: flex; align-items: center; gap: 15px;">
                                 <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: var(--admin-accent);"></i>
                                 <div style="text-align: left;">
@@ -178,6 +186,26 @@
                     </div>
 
                     <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Media Gallery (multiple)</label>
+                        <div style="display: flex; gap: 8px; flex-direction: column;">
+                            <input type="file" id="add-cat-media" name="media_files" accept="image/*,video/*" multiple style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;">
+                            <textarea name="media_urls" rows="3" placeholder="Add image/video URLs, one per line or comma separated" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; resize: vertical; font-family: inherit; min-height: 72px;"></textarea>
+                            <div style="font-size: 12px; color: #777;">Upload multiple images or videos here. First image is used as the card preview, and all media open in the gallery modal.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 22px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Background Video (optional)</label>
+                    <div style="display: flex; gap: 8px; flex-direction: column;">
+                        <input type="file" id="add-cat-video" name="video" accept="video/*" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;">
+                        <input type="url" name="video_url" placeholder="Or video URL (YouTube, MP4, etc.)" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="font-size: 12px; color: #777;">Provide either an image or a video. If both are added, the first image is shown on the card and the gallery opens all media.</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px;">
+                    <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Icon / Logo (optional)</label>
                         <div style="display: flex; gap: 8px; flex-direction: column;">
                             <input type="file" id="add-cat-icon" name="icon" accept="image/*" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;" onchange="document.getElementById('add-icon-name').innerText = this.files[0] ? this.files[0].name : 'Choose an icon image'; document.getElementById('add-icon-name').style.color = this.files[0] ? 'var(--admin-accent)' : '#888';">
@@ -186,6 +214,7 @@
                             <div style="font-size: 12px; color: #777;">If you upload an icon image it will be used; otherwise icon URL or CSS class will be used in that order.</div>
                         </div>
                     </div>
+                    <div></div>
                 </div>
                 
                 <div class="admin-modal-actions" style="display: flex; gap: 15px; margin-top: 25px;">
@@ -250,6 +279,28 @@
                     </div>
 
                     <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Media Gallery (multiple)</label>
+                        <div style="display: flex; gap: 8px; flex-direction: column;">
+                            <input type="file" id="edit-cat-media" name="media_files" accept="image/*,video/*" multiple style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;">
+                            <textarea id="edit_media_urls" name="media_urls" rows="3" placeholder="Add image/video URLs, one per line or comma separated" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; resize: vertical; font-family: inherit; min-height: 72px;"></textarea>
+                            <label style="font-size: 13px; color: #555; display:flex; gap:8px; align-items:center;"><input type="checkbox" name="clear_media" id="clear_media"> Replace all current gallery media</label>
+                            <div style="font-size: 12px; color: #777;">Upload multiple images or videos here. First image is used as the card preview, and all media open in the gallery modal.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 22px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Background Video (optional)</label>
+                    <div style="display: flex; gap: 8px; flex-direction: column;">
+                        <input type="file" id="edit-cat-video" name="video" accept="video/*" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;">
+                        <input type="url" id="edit_video_url" name="video_url" placeholder="Or video URL (YouTube, MP4, etc.)" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                        <label style="font-size: 13px; color: #555; display:flex; gap:8px; align-items:center;"><input type="checkbox" name="clear_video" id="clear_video"> Remove current video</label>
+                        <div style="font-size: 12px; color: #777;">Provide either an image or a video. If both are added, the first image is shown on the card and the gallery opens all media.</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px;">
+                    <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 14px;">Icon / Logo (optional)</label>
                         <div style="display: flex; gap: 8px; flex-direction: column;">
                             <input type="file" id="edit-cat-icon" name="icon" accept="image/*" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff;" onchange="document.getElementById('edit-icon-name').innerText = this.files[0] ? this.files[0].name : 'Choose an icon image'; document.getElementById('edit-icon-name').style.color = this.files[0] ? 'var(--admin-accent)' : '#888';">
@@ -259,6 +310,7 @@
                             <div style="font-size: 12px; color: #777;">If you upload an icon image it will be used; otherwise icon URL or CSS class will be used in that order.</div>
                         </div>
                     </div>
+                    <div></div>
                 </div>
                 
                 <div class="admin-modal-actions" style="display: flex; gap: 15px; margin-top: 25px;">
@@ -305,6 +357,7 @@
             const position = btn.getAttribute('data-position');
             const showOnProjects = btn.getAttribute('data-show-on-projects') === 'true';
             const iconVal = btn.getAttribute('data-icon') || '';
+            const videoVal = btn.getAttribute('data-video') || '';
 
             document.getElementById('editForm').action = "/admin/portfolio-categories/edit/" + id;
             document.getElementById('editName').value = name;
@@ -314,6 +367,11 @@
             if (editCheckbox) {
                 editCheckbox.checked = showOnProjects;
             }
+
+            const editVideoUrlInput = document.getElementById('edit_video_url');
+            const clearVideoCheckbox = document.getElementById('clear_video');
+            if (editVideoUrlInput) editVideoUrlInput.value = videoVal || '';
+            if (clearVideoCheckbox) clearVideoCheckbox.checked = false;
 
             // prefill icon fields
             const editIconUrlInput = document.getElementById('edit_icon_url');

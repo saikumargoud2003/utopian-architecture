@@ -12,35 +12,70 @@
       }
     }
 
-    /* Explore Categories Layout */
     .explore-categories-section {
       background-color: #fcfcfc;
     }
     .explore-card {
+      position: relative;
       border-radius: 12px;
       height: 240px;
       transition: transform 0.4s ease, box-shadow 0.4s ease;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(27, 31, 35, 0.08);
+      background: #e6e1d8;
+      background-size: cover;
+      background-position: center;
     }
     .explore-card:hover {
       transform: translateY(-5px);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    }
+    .explore-card-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      z-index: 0;
+    }
+    .explore-card.has-video::after {
+      content: '\f04b';
+      font-family: 'FontAwesome';
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      z-index: 2;
+      font-size: 13px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
     }
     .explore-card-overlay {
       position: absolute;
       bottom: 0;
       left: 0;
       width: 100%;
-      background-color: rgba(30, 24, 18, 0.95);
-      padding: 4px 10px;
+      background: linear-gradient(180deg, rgba(30,24,18,0.1), rgba(30,24,18,0.95));
+      padding: 8px 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
+      z-index: 2;
     }
     .category-card-icon {
       color: #cca471;
       font-size: 55px;
       margin: 0;
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
     }
     img.category-card-icon {
       width: 55px;
@@ -59,18 +94,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (max-width: 575.98px) {
-      .category-card-title {
-        font-size: 10px;
-      }
-      .category-card-icon {
-        font-size: 18px;
-      }
-      img.category-card-icon {
-        width: 22px;
-        height: 22px;
-      }
-    }
     .title-ornament {
       display: flex;
       align-items: center;
@@ -84,6 +107,120 @@
       width: 40px;
       height: 1px;
       background-color: #cca471;
+    }
+    .category-media-card {
+      cursor: pointer;
+    }
+    .collection-media-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+    .collection-media-modal.open {
+      display: flex;
+    }
+    .collection-media-shell {
+      position: relative;
+      width: min(100%, 1150px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .collection-media-stage {
+      position: relative;
+      width: min(100%, 1000px);
+      max-height: 78vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(17, 17, 17, 0.6);
+      box-shadow: 0 35px 80px rgba(0, 0, 0, 0.28);
+    }
+    .collection-media-stage img,
+    .collection-media-stage video {
+      display: block;
+      width: 100%;
+      max-height: 78vh;
+      object-fit: contain;
+      background: #0d0d0d;
+    }
+    .collection-media-meta {
+      color: #f8f2e8;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      max-width: 900px;
+      line-height: 1.7;
+      font-family: 'Playfair Display', serif;
+    }
+    .collection-media-close,
+    .collection-media-prev,
+    .collection-media-next {
+      position: absolute;
+      z-index: 100000;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 22px;
+    }
+    .collection-media-close:hover,
+    .collection-media-prev:hover,
+    .collection-media-next:hover {
+      background: #906e49;
+      border-color: #906e49;
+      color: #fff;
+    }
+    .collection-media-close {
+      top: 30px;
+      right: 40px;
+    }
+    .collection-media-prev {
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .collection-media-next {
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .collection-media-counter {
+      margin-top: 0;
+      margin-bottom: 0;
+      color: #f8f2e8;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 575.98px) {
+      .category-card-title {
+        font-size: 10px;
+      }
+      .category-card-icon {
+        font-size: 18px;
+      }
+      img.category-card-icon {
+        width: 22px;
+        height: 22px;
+      }
     }
   </style>
 {% endblock %}
@@ -125,10 +262,21 @@
         <div class="row g-3 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5">
           
           {% for cat in portfolio_categories %}
+          {% set media_items = cat.get_media_items() %}
+          {% set featured_media = media_items[0] if media_items else None %}
+          {% set featured_media_url = featured_media['url'] if featured_media else (cat.image_url or '') %}
           <div class="col">
-            <a href="{{ url_for('portfolio', category=cat.slug) }}" class="text-decoration-none">
-              <div class="explore-card position-relative overflow-hidden">
-                 <img src="{{ cat.image_url if cat.image_url and (cat.image_url.startswith('http') or cat.image_url.startswith('/') or cat.image_url.startswith('data:')) else (url_for('static', filename=cat.image_url) if cat.image_url else '') }}" alt="{{ cat.name }}" class="w-100 h-100 object-fit-cover">
+           <div class="explore-card position-relative overflow-hidden category-media-card {% if featured_media and featured_media.type == 'video' %}has-video{% endif %}"
+                data-title="{{ cat.name|e }}"
+                data-media='{{ media_items|tojson|forceescape }}'
+                role="button" tabindex="0" aria-label="Open {{ cat.name }} gallery">
+                 {% if featured_media and featured_media.type == 'video' %}
+                 <video class="explore-card-bg" autoplay muted loop playsinline poster="{{ cat.image_url if cat.image_url else '' }}">
+                     <source src="{{ featured_media_url }}" type="video/mp4">
+                 </video>
+                 {% elif featured_media_url %}
+                 <img src="{{ featured_media_url if featured_media_url and (featured_media_url.startswith('http') or featured_media_url.startswith('/') or featured_media_url.startswith('data:')) else (url_for('static', filename=featured_media_url) if featured_media_url else '') }}" alt="{{ cat.name }}" class="explore-card-bg">
+                 {% endif %}
                  <div class="explore-card-overlay">
                     {% if cat.icon_class and ('/' in cat.icon_class or '.' in cat.icon_class or cat.icon_class.startswith('img')) %}
                     <img src="{{ cat.icon_class if (cat.icon_class.startswith('http') or cat.icon_class.startswith('/') or cat.icon_class.startswith('data:')) else url_for('static', filename=cat.icon_class) }}" alt="{{ cat.name|striptags }}" class="category-card-icon">
@@ -138,7 +286,6 @@
                     <h6 class="category-card-title mb-0 text-start">{{ cat.name|safe }}</h6>
                  </div>
               </div>
-            </a>
           </div>
           {% else %}
           <div class="col-12 text-center py-5">
@@ -169,13 +316,24 @@
         <div class="gallery-grid">
           {% for item in gallery_items %}
             {% if current_category in item.filter_class.split(' ') %}
-              <div class="gallery-item" data-category="{{ item.filter_class }}">
-                <img src="{{ item.image_url }}" alt="{{ item.alt }}" loading="lazy" />
-                <div class="gallery-overlay">
-                  <div class="overlay-text text-center text-white p-3">
-                    <i class="fa fa-search-plus mb-2"></i>
+              <div class="gallery-item {% if item.video_url %}video-item{% endif %}" data-category="{{ item.filter_class }}" data-media-type="{{ 'video' if item.video_url else 'image' }}" data-video-url="{{ item.video_url or '' }}" data-image-url="{{ item.image_url or '' }}">
+                {% if item.video_url %}
+                  <video controls playsinline preload="metadata" poster="{{ item.image_url if item.image_url else '' }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+                    <source src="{{ item.video_url }}" type="video/mp4">
+                  </video>
+                  <div class="gallery-overlay">
+                    <div class="overlay-text text-center text-white p-3">
+                      <i class="fa fa-play-circle mb-2"></i>
+                    </div>
                   </div>
-                </div>
+                {% else %}
+                  <img src="{{ item.image_url }}" alt="{{ item.alt }}" loading="lazy" />
+                  <div class="gallery-overlay">
+                    <div class="overlay-text text-center text-white p-3">
+                      <i class="fa fa-search-plus mb-2"></i>
+                    </div>
+                  </div>
+                {% endif %}
               </div>
             {% endif %}
           {% endfor %}
@@ -196,9 +354,26 @@
       <button class="lightbox-prev" aria-label="Previous Image"><i class="fa fa-angle-left"></i></button>
       <div class="lightbox-content">
         <img class="lightbox-img" src="" alt="Gallery Preview" />
+        <video class="lightbox-video" controls playsinline preload="metadata" style="display:none;max-width:100%;max-height:85vh;width:auto;height:auto;background:#000;border-radius:12px;">
+          <source src="" type="video/mp4">
+        </video>
         <div class="lightbox-counter">0 / 0</div>
       </div>
       <button class="lightbox-next" aria-label="Next Image"><i class="fa fa-angle-right"></i></button>
+    </div>
+
+    <div id="collectionMediaModal" class="collection-media-modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <button type="button" class="collection-media-close" aria-label="Close collection media"><i class="fa fa-times"></i></button>
+      <button type="button" class="collection-media-prev" aria-label="Previous collection media"><i class="fa fa-angle-left"></i></button>
+      <div class="collection-media-shell">
+        <div class="collection-media-stage">
+          <img id="collectionMediaImage" src="" alt="Collection preview" />
+          <video id="collectionMediaVideo" controls playsinline preload="metadata" style="display:none;"></video>
+        </div>
+        <div id="collectionMediaMeta" class="collection-media-meta"></div>
+        <div id="collectionMediaCounter" class="collection-media-counter">0 / 0</div>
+      </div>
+      <button type="button" class="collection-media-next" aria-label="Next collection media"><i class="fa fa-angle-right"></i></button>
     </div>
 
     <!-- Appointment Section Starts -->
@@ -244,4 +419,117 @@
       </div>
     </div>
     <!-- Appointment Section Ends -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('collectionMediaModal');
+    const modalImage = document.getElementById('collectionMediaImage');
+    const modalVideo = document.getElementById('collectionMediaVideo');
+    const modalMeta = document.getElementById('collectionMediaMeta');
+    const modalCounter = document.getElementById('collectionMediaCounter');
+    const closeBtn = document.querySelector('.collection-media-close');
+    const prevBtn = document.querySelector('.collection-media-prev');
+    const nextBtn = document.querySelector('.collection-media-next');
+
+    let currentCard = null;
+    let currentMedia = [];
+    let currentIndex = 0;
+
+    function isVideoUrl(value) {
+      const url = (value || '').toLowerCase();
+      return /\.(mp4|webm|ogg|mov|m4v|avi|mkv)(\?|$)/i.test(url) || /youtube|youtu\.be|vimeo|video/i.test(url);
+    }
+
+    function updateModal() {
+      if (!currentCard || !currentMedia.length) return;
+      const item = currentMedia[currentIndex];
+      const title = currentCard.dataset.title || 'Collection';
+      modalMeta.textContent = title;
+
+      if (isVideoUrl(item.url || item)) {
+        modalImage.style.display = 'none';
+        modalVideo.style.display = 'block';
+        modalVideo.src = item.url || item;
+        modalVideo.load();
+      } else {
+        modalImage.style.display = 'block';
+        modalVideo.style.display = 'none';
+        modalVideo.removeAttribute('src');
+        modalVideo.pause();
+        modalImage.src = item.url || item;
+        modalImage.alt = title;
+      }
+
+      modalCounter.textContent = (currentIndex + 1) + ' / ' + currentMedia.length;
+    }
+
+    function openModal(card) {
+      const media = JSON.parse(card.getAttribute('data-media') || '[]');
+      currentCard = card;
+      currentMedia = media.length ? media : [{ type: 'image', url: card.querySelector('img')?.getAttribute('src') || '' }];
+      currentIndex = 0;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      updateModal();
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      modalImage.removeAttribute('src');
+      modalVideo.removeAttribute('src');
+      modalVideo.pause();
+      currentCard = null;
+      currentMedia = [];
+      currentIndex = 0;
+    }
+
+    function nextMedia() {
+      if (!currentMedia.length) return;
+      currentIndex = (currentIndex + 1) % currentMedia.length;
+      updateModal();
+    }
+
+    function prevMedia() {
+      if (!currentMedia.length) return;
+      currentIndex = (currentIndex - 1 + currentMedia.length) % currentMedia.length;
+      updateModal();
+    }
+
+    document.querySelectorAll('.category-media-card').forEach((card) => {
+      card.addEventListener('click', function () {
+        openModal(card);
+      });
+      card.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openModal(card);
+        }
+      });
+    });
+
+    closeBtn?.addEventListener('click', closeModal);
+    prevBtn?.addEventListener('click', function (event) {
+      event.stopPropagation();
+      prevMedia();
+    });
+    nextBtn?.addEventListener('click', function (event) {
+      event.stopPropagation();
+      nextMedia();
+    });
+    modal?.addEventListener('click', function (event) {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (!modal || !modal.classList.contains('open')) return;
+      if (event.key === 'Escape') closeModal();
+      else if (event.key === 'ArrowRight') nextMedia();
+      else if (event.key === 'ArrowLeft') prevMedia();
+    });
+  });
+</script>
 {% endblock %}

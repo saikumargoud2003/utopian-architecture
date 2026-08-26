@@ -25,6 +25,201 @@
       transform: translateY(-5px);
       box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
+    .ongoing-projects-wrap {
+      background: #f8f5f0;
+      position: relative;
+    }
+    .title-ornament {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+    .title-ornament::before,
+    .title-ornament::after {
+      content: '';
+      display: block;
+      width: 40px;
+      height: 1px;
+      background-color: #cca471;
+    }
+    .ongoing-project-card {
+      position: relative;
+      border-radius: 12px;
+      height: 240px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(27, 31, 35, 0.08);
+      cursor: pointer;
+      background: #d7d7d7;
+    }
+    .ongoing-project-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    }
+    .ongoing-project-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .ongoing-project-overlay {
+      position: absolute;
+      inset: auto 0 0 0;
+      background: linear-gradient(180deg, rgba(30,24,18,0.1), rgba(30,24,18,0.95));
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .ongoing-project-status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8d99d;
+      border: 1px solid rgba(255, 211, 128, 0.45);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 10px;
+      line-height: 1.2;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      backdrop-filter: blur(2px);
+    }
+    .ongoing-project-title {
+      font-size: 13px;
+      letter-spacing: 1px;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-family: 'Playfair Display', serif;
+      margin: 0;
+    }
+    .ongoing-project-meta {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 10px;
+      display: none;
+    }
+    .ongoing-project-description {
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 18px;
+      display: none;
+    }
+    .ongoing-project-gallery {
+      display: none;
+    }
+    .ongoing-project-video {
+      display: none;
+    }
+    .ongoing-project-view-btn {
+      display: none;
+    }
+    .ongoing-project-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+    .ongoing-project-modal.open {
+      display: flex;
+    }
+    .ongoing-project-modal-shell {
+      position: relative;
+      width: min(100%, 1150px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .ongoing-project-modal-stage {
+      position: relative;
+      width: min(100%, 1000px);
+      max-height: 78vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(17, 17, 17, 0.6);
+      box-shadow: 0 35px 80px rgba(0, 0, 0, 0.28);
+    }
+    .ongoing-project-modal-stage img,
+    .ongoing-project-modal-stage video {
+      display: block;
+      width: 100%;
+      max-height: 78vh;
+      object-fit: contain;
+      background: #0d0d0d;
+    }
+    .ongoing-project-modal-meta {
+      color: #f8f2e8;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      max-width: 900px;
+      line-height: 1.7;
+      font-family: 'Playfair Display', serif;
+    }
+    .ongoing-project-modal-close,
+    .ongoing-project-modal-prev,
+    .ongoing-project-modal-next {
+      position: absolute;
+      z-index: 100000;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 22px;
+    }
+    .ongoing-project-modal-close:hover,
+    .ongoing-project-modal-prev:hover,
+    .ongoing-project-modal-next:hover {
+      background: #906e49;
+      border-color: #906e49;
+      color: #fff;
+    }
+    .ongoing-project-modal-close {
+      top: 30px;
+      right: 40px;
+    }
+    .ongoing-project-modal-prev {
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .ongoing-project-modal-next {
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .ongoing-project-modal .lightbox-counter {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
     .explore-card-overlay {
       position: absolute;
       bottom: 0;
@@ -97,78 +292,59 @@
     </section>
     <!-- Breadcrumb Section Ends -->
 
-    {% if not current_category %}
-    <!-- EXPLORE BY CATEGORY Section -->
-    <section class="explore-categories-section py-5">
-      <div class="container-fluid px-2 px-lg-4">
-        <div class="row g-3 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5">
-          
-          {% for cat in portfolio_categories %}
-          <div class="col">
-            <a href="{{ url_for('projects', category=cat.slug) }}" class="text-decoration-none">
-              <div class="explore-card position-relative overflow-hidden">
-                 <img src="{{ cat.image_url if cat.image_url and (cat.image_url.startswith('http') or cat.image_url.startswith('/') or cat.image_url.startswith('data:')) else (url_for('static', filename=cat.image_url) if cat.image_url else '') }}" alt="{{ cat.name }}" class="w-100 h-100 object-fit-cover">
-                 <div class="explore-card-overlay">
-                    {% set show_cat_icon = cat.icon_class and cat.icon_class != 'img/gallery_icons/default_icons.png' and cat.icon_class != '/static/img/gallery_icons/default_icons.png' %}
-                    {% if show_cat_icon and ('/' in cat.icon_class or '.' in cat.icon_class or cat.icon_class.startswith('img')) %}
-                    <img src="{{ cat.icon_class if (cat.icon_class.startswith('http') or cat.icon_class.startswith('/') or cat.icon_class.startswith('data:')) else url_for('static', filename=cat.icon_class) }}" alt="{{ cat.name|striptags }}" class="category-card-icon">
-                    {% elif show_cat_icon %}
-                    <i class="fa {{ cat.icon_class }} category-card-icon"></i>
-                    {% endif %}
-                    <h6 class="category-card-title mb-0 text-start">{{ cat.name|safe }}</h6>
-                 </div>
-              </div>
-            </a>
-          </div>
-          {% else %}
-          <div class="col-12 text-center py-5">
-             <h5 class="text-muted">No categories found.</h5>
-          </div>
-          {% endfor %}
-
-        </div>
-      </div>
-    </section>
-
-    {% else %}
-    <!-- Gallery Section Starts -->
-    <section class="gallery-section py-5 bg-white position-relative">
+    {% if ongoing_projects %}
+    <section class="ongoing-projects-wrap py-5">
       <div class="container">
-
-        <!-- Back Button -->
-        <div class="row mb-4">
-          <div class="col-12 text-center text-md-start">
-             <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary px-4 py-2" style="border-radius: 30px;">
-               <i class="fa fa-arrow-left me-2"></i> Back to Categories
-             </a>
+        <div class="text-center mb-4">
+          <div class="title-ornament mb-3">
+            <i class="fa fa-gem text-gold fs-6" style="color: #cca471;"></i>
+            <span class="primary text-uppercase fw-bold" style="letter-spacing: 0.12em; font-size: 12px;">Ongoing Projects</span>
+            <i class="fa fa-gem text-gold fs-6" style="color: #cca471;"></i>
           </div>
+          <h3 class="mt-2 mb-0" style="font-family: 'Playfair Display', serif; font-size: clamp(2rem, 3vw, 3rem); color: #1b1b1b;">Designs in Progress</h3>
         </div>
 
-        {% if gallery_items %}
-        <!-- Gallery Grid -->
-        <div class="gallery-grid">
-          {% for item in gallery_items %}
-            {% if current_category in item.filter_class.split(' ') %}
-              <div class="gallery-item" data-category="{{ item.filter_class }}">
-                <img src="{{ item.image_url }}" alt="{{ item.alt }}" loading="lazy" />
-                <div class="gallery-overlay">
-                  <div class="overlay-text text-center text-white p-3">
-                    <i class="fa fa-search-plus mb-2"></i>
-                  </div>
-                </div>
+        <div class="row g-3 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5">
+          {% for project in ongoing_projects %}
+          {% set project_main_image = project.featured_image or (project.photos[0] if project.photos else '') %}
+          <div class="col">
+            <div class="ongoing-project-card"
+                 data-title="{{ project.title | e }}"
+                 data-location="{{ project.location | e }}"
+                 data-status="{{ project.status | e }}"
+                 data-description="{{ project.description | e }}"
+                 data-photos="{{ project.photos|join('||') if project.photos else '' }}"
+                 data-videos="{{ project.videos|join('||') if project.videos else '' }}">
+              {% if project_main_image %}
+              <img src="{{ project_main_image }}" alt="{{ project.title }}" class="ongoing-project-image" loading="lazy">
+              {% endif %}
+              <div class="ongoing-project-overlay">
+                {% if project.status %}
+                <span class="ongoing-project-status-chip">{{ project.status }}</span>
+                {% endif %}
+                <h6 class="ongoing-project-title">{{ project.title }}</h6>
               </div>
-            {% endif %}
+            </div>
+          </div>
           {% endfor %}
         </div>
-        {% else %}
-        <div class="text-center py-5">
-           <h4 class="text-muted">No images found for this category.</h4>
-        </div>
-        {% endif %}
       </div>
     </section>
     {% endif %}
-    <!-- Gallery Section Ends -->
+
+    <div id="ongoingProjectModal" class="ongoing-project-modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <button type="button" class="ongoing-project-modal-close" aria-label="Close project details"><i class="fa fa-times"></i></button>
+      <button type="button" class="ongoing-project-modal-prev" aria-label="Previous project media"><i class="fa fa-angle-left"></i></button>
+      <div class="ongoing-project-modal-shell">
+        <div class="ongoing-project-modal-stage">
+          <img id="ongoingProjectModalImage" src="" alt="Project preview" />
+          <video id="ongoingProjectModalVideo" controls playsinline preload="metadata" style="display:none;"></video>
+        </div>
+        <div id="ongoingProjectModalMeta" class="ongoing-project-modal-meta"></div>
+        <div id="ongoingProjectModalCounter" class="lightbox-counter">0 / 0</div>
+      </div>
+      <button type="button" class="ongoing-project-modal-next" aria-label="Next project media"><i class="fa fa-angle-right"></i></button>
+    </div>
 
     <!-- Lightbox Preview Markup -->
     <div id="gallery-lightbox" class="lightbox" aria-hidden="true" role="dialog">
@@ -224,4 +400,139 @@
       </div>
     </div>
     <!-- Appointment Section Ends -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('ongoingProjectModal');
+    const modalImage = document.getElementById('ongoingProjectModalImage');
+    const modalVideo = document.getElementById('ongoingProjectModalVideo');
+    const modalMeta = document.getElementById('ongoingProjectModalMeta');
+    const modalCounter = document.getElementById('ongoingProjectModalCounter');
+    const closeBtn = document.querySelector('.ongoing-project-modal-close');
+    const prevBtn = document.querySelector('.ongoing-project-modal-prev');
+    const nextBtn = document.querySelector('.ongoing-project-modal-next');
+
+    let currentProjectCard = null;
+    let currentProjectMedia = [];
+    let currentMediaIndex = 0;
+
+    function splitMedia(value) {
+      return value ? value.split('||').map(item => item.trim()).filter(Boolean) : [];
+    }
+
+    function isVideoUrl(value) {
+      return /\.(mp4|webm|ogg)(\?|$)/i.test(value) || /video/i.test(value);
+    }
+
+    function updateProjectLightbox() {
+      if (!currentProjectCard || !currentProjectMedia.length) return;
+
+      const item = currentProjectMedia[currentMediaIndex];
+      const title = currentProjectCard.dataset.title || 'Project';
+      const location = currentProjectCard.dataset.location || '';
+      const status = currentProjectCard.dataset.status || '';
+
+      modalMeta.innerHTML = '';
+      const metaText = [title, status, location].filter(Boolean).join(' • ');
+      modalMeta.textContent = metaText;
+
+      if (isVideoUrl(item)) {
+        modalImage.style.display = 'none';
+        modalVideo.style.display = 'block';
+        modalVideo.src = item;
+        modalVideo.load();
+      } else {
+        modalImage.style.display = 'block';
+        modalVideo.style.display = 'none';
+        modalVideo.removeAttribute('src');
+        modalImage.src = item;
+        modalImage.alt = title;
+      }
+
+      modalCounter.textContent = (currentMediaIndex + 1) + ' / ' + currentProjectMedia.length;
+    }
+
+    function openModal(card) {
+      currentProjectCard = card;
+      currentProjectMedia = [...splitMedia(card.dataset.photos), ...splitMedia(card.dataset.videos)];
+      if (!currentProjectMedia.length) {
+        currentProjectMedia = [card.querySelector('img')?.src || ''];
+      }
+      currentMediaIndex = 0;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      updateProjectLightbox();
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      modalImage.removeAttribute('src');
+      modalVideo.removeAttribute('src');
+      modalVideo.pause();
+      currentProjectCard = null;
+      currentProjectMedia = [];
+      currentMediaIndex = 0;
+    }
+
+    function nextMedia() {
+      if (!currentProjectMedia.length) return;
+      currentMediaIndex = (currentMediaIndex + 1) % currentProjectMedia.length;
+      updateProjectLightbox();
+    }
+
+    function prevMedia() {
+      if (!currentProjectMedia.length) return;
+      currentMediaIndex = (currentMediaIndex - 1 + currentProjectMedia.length) % currentProjectMedia.length;
+      updateProjectLightbox();
+    }
+
+    document.querySelectorAll('.ongoing-project-card').forEach((card) => {
+      card.addEventListener('click', function (event) {
+        if (event.target.closest('button, a, input, textarea, select')) {
+          return;
+        }
+        openModal(card);
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        prevMedia();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        nextMedia();
+      });
+    }
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (!modal.classList.contains('open')) return;
+
+      if (event.key === 'Escape') {
+        closeModal();
+      } else if (event.key === 'ArrowRight') {
+        nextMedia();
+      } else if (event.key === 'ArrowLeft') {
+        prevMedia();
+      }
+    });
+  });
+</script>
 {% endblock %}

@@ -1,0 +1,228 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}Ongoing Projects – UtopiaAdmin{% endblock %}
+
+{% block content %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="admin-alert admin-alert-{{ category }}" style="margin-bottom: 30px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <h1 class="admin-page-title" style="margin-bottom: 2px;">Ongoing Projects</h1>
+            <p class="admin-page-subtitle" style="margin-bottom: 0;">Manage active site projects, photos, and videos.</p>
+        </div>
+        <button class="admin-btn admin-btn-accent" onclick="openAddModal()">
+            <i class="fa-solid fa-plus"></i> Add Project
+        </button>
+    </div>
+
+    {% if projects %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+            {% for project in projects %}
+                <div class="admin-panel" style="padding: 20px; border-top: 4px solid var(--admin-accent);">
+                    <div style="height: 200px; border-radius: 10px; overflow: hidden; background: #f4f4f4; margin-bottom: 15px; background-image: url('{{ project.featured_image or project.photos[0] if project.photos else '' }}'); background-size: cover; background-position: center;">
+                        {% if not project.featured_image and not project.photos %}
+                            <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #999; font-size: 28px;">
+                                <i class="fa-solid fa-image"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: #8a6d3b; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 6px;">Project</div>
+                        <div style="font-size: 22px; font-weight: 700; color: #1f2937; line-height: 1.2;">{{ project.title }}</div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; color: #4b5563; font-size: 14px;">
+                        <div><strong>Location:</strong> {{ project.location }}</div>
+                        <div><strong>Status:</strong> {{ project.status or 'In Progress' }}</div>
+                        <div><strong>Position:</strong> {{ project.position }}</div>
+                    </div>
+
+                    {% if project.description %}
+                        <div style="font-size: 14px; color: #4b5563; line-height: 1.6; margin-bottom: 12px; background: #fafaf9; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px;">
+                            {{ project.description | truncate(180) }}
+                        </div>
+                    {% endif %}
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+                        <button type="button" class="admin-btn"
+                            data-id="{{ project.id }}"
+                            data-title="{{ project.title | e }}"
+                            data-location="{{ project.location | e }}"
+                            data-status="{{ project.status | e }}"
+                            data-description="{{ project.description | e }}"
+                            data-position="{{ project.position }}"
+                            data-photo-urls="{{ project.photo_urls | e }}"
+                            data-video-urls="{{ project.video_urls | e }}"
+                            data-featured-image="{{ project.featured_image | e }}"
+                            data-is-featured="{{ 'true' if project.is_featured else 'false' }}"
+                            onclick="openEditModal(this)"
+                            style="padding: 8px 15px; font-size: 13px; background: transparent; border: 1px solid var(--admin-accent); color: var(--admin-accent); border-radius: 6px;">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        <button type="button" class="admin-btn" data-id="{{ project.id }}" onclick="openDeleteModal(this)" style="padding: 8px 15px; font-size: 13px; background: #dc3545; color: white; border: none; border-radius: 6px;">
+                            <i class="fa-solid fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="admin-panel" style="padding: 50px 20px; text-align: center;">
+            <div style="font-size: 48px; color: #ccc; margin-bottom: 15px;">
+                <i class="fa-solid fa-diagram-project"></i>
+            </div>
+            <h3 style="margin-bottom: 10px;">No Ongoing Projects Found</h3>
+            <p style="color: #666; margin-bottom: 20px;">Add the first active project to showcase work in progress.</p>
+            <button class="admin-btn admin-btn-accent" onclick="openAddModal()"><i class="fa-solid fa-plus"></i> Add First Project</button>
+        </div>
+    {% endif %}
+
+    <div id="projectModal" class="gallery-cat-modal" style="display: none;">
+        <div class="admin-login-card admin-modal-card" style="width: 100%; max-width: 720px; position: relative; padding: 30px; max-height: 90vh; overflow-y: auto; box-sizing: border-box; background: #fff; text-align: left;">
+            <button type="button" onclick="closeAllModals()" style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--admin-text);"><i class="ri-close-line"></i></button>
+            <h2 class="admin-page-title" id="projectModalTitle" style="margin-bottom: 20px; font-size: 22px;">Add Project</h2>
+
+            <form id="projectForm" method="POST" enctype="multipart/form-data">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px;">
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Project Title *</label>
+                        <input type="text" name="title" id="projectTitle" required style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Site Location *</label>
+                        <input type="text" name="location" id="projectLocation" required style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px;">
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Status / Phase</label>
+                        <input type="text" name="status" id="projectStatus" placeholder="Foundation stage / Interior fit-out" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Position</label>
+                        <input type="number" name="position" id="projectPosition" value="0" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 18px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Description / Notes</label>
+                    <textarea name="description" id="projectDescription" rows="4" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 18px; background: #fdfbf7; padding: 14px 16px; border-radius: 8px; border: 1px solid #e8dec8;">
+                    <label style="display:flex; align-items:center; gap: 10px; font-weight:600; color:#333; cursor:pointer; margin:0;">
+                        <input type="checkbox" name="is_featured" id="projectFeatured" style="width:18px; height:18px; accent-color: var(--admin-accent);">
+                        <span>Feature this project</span>
+                    </label>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px;">
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Photos (multiple)</label>
+                        <input type="file" name="photos" id="projectPhotos" accept="image/*" multiple style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        <div style="font-size:12px; color:#666; margin-top:6px;">Upload one or more photos. You can also paste URLs below.</div>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Videos (multiple)</label>
+                        <input type="file" name="videos" id="projectVideos" accept="video/*" multiple style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                        <div style="font-size:12px; color:#666; margin-top:6px;">MP4/WebM uploads or URLs below.</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px;">
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Photo URLs</label>
+                        <textarea name="photo_urls" id="projectPhotoUrls" rows="3" placeholder="https://example.com/photo1.jpg, https://example.com/photo2.jpg" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px; resize:vertical;"></textarea>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Video URLs or embeds</label>
+                        <textarea name="video_urls" id="projectVideoUrls" rows="3" placeholder="https://youtube.com/watch?v=... or https://player.vimeo.com/video/... or https://example.com/video.mp4" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px; resize:vertical;"></textarea>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 18px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#444; font-size:14px;">Featured image URL (optional)</label>
+                    <input type="url" name="featured_image" id="projectFeaturedImage" placeholder="Leave blank to use the first photo" style="width:100%; box-sizing:border-box; padding:12px 15px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+
+                <div class="admin-modal-actions" style="display:flex; gap:15px; margin-top:25px;">
+                    <button type="button" onclick="closeAllModals()" style="flex:1; padding:12px; border:1px solid #ddd; background:white; border-radius:8px; font-weight:600; color:#555; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="flex:1; padding:12px; border:none; background:var(--admin-accent); border-radius:8px; color:white; font-weight:600; cursor:pointer;">Save Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="gallery-cat-modal" style="display: none;">
+        <div class="admin-login-card admin-modal-card" style="width:100%; max-width:420px; background:#fff; padding:30px; box-sizing:border-box; text-align:center;">
+            <button type="button" onclick="closeAllModals()" style="position:absolute; right:20px; top:20px; background:transparent; border:none; font-size:24px; cursor:pointer; color: var(--admin-text);"><i class="ri-close-line"></i></button>
+            <div style="font-size:48px; color:#dc3545; margin-bottom:15px;"><i class="ri-error-warning-line"></i></div>
+            <h3 style="margin-bottom: 10px; font-size:20px; color:#252525;">Confirm Deletion</h3>
+            <p style="color:#666; margin-bottom:25px; line-height:1.5;">This will permanently delete the project.</p>
+            <form id="deleteProjectForm" method="POST">
+                <div class="admin-modal-actions" style="display:flex; gap:12px; justify-content:center;">
+                    <button type="button" onclick="closeAllModals()" style="flex:1; padding:12px; border:1px solid #ddd; background:white; border-radius:8px; font-weight:600; color:#555; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="flex:1; padding:12px; border:none; background:#dc3545; border-radius:8px; color:white; font-weight:600; cursor:pointer;">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const projectModal = document.getElementById('projectModal');
+        const deleteModal = document.getElementById('deleteModal');
+
+        function openAddModal() {
+            document.getElementById('projectForm').action = '{{ url_for("admin_add_ongoing_project") }}';
+            document.getElementById('projectModalTitle').textContent = 'Add Project';
+            document.getElementById('projectForm').reset();
+            document.getElementById('projectPosition').value = '0';
+            projectModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function openEditModal(button) {
+            const form = document.getElementById('projectForm');
+            form.action = '/admin/ongoing-projects/edit/' + button.getAttribute('data-id');
+            document.getElementById('projectModalTitle').textContent = 'Edit Project';
+            document.getElementById('projectTitle').value = button.getAttribute('data-title') || '';
+            document.getElementById('projectLocation').value = button.getAttribute('data-location') || '';
+            document.getElementById('projectStatus').value = button.getAttribute('data-status') || '';
+            document.getElementById('projectDescription').value = button.getAttribute('data-description') || '';
+            document.getElementById('projectPosition').value = button.getAttribute('data-position') || '0';
+            document.getElementById('projectFeaturedImage').value = button.getAttribute('data-featured-image') || '';
+            document.getElementById('projectPhotoUrls').value = button.getAttribute('data-photo-urls') || '';
+            document.getElementById('projectVideoUrls').value = button.getAttribute('data-video-urls') || '';
+            document.getElementById('projectFeatured').checked = button.getAttribute('data-is-featured') === 'true';
+
+            projectModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function openDeleteModal(button) {
+            document.getElementById('deleteProjectForm').action = '/admin/ongoing-projects/delete/' + button.getAttribute('data-id');
+            deleteModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAllModals() {
+            if (projectModal) projectModal.style.display = 'none';
+            if (deleteModal) deleteModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.addEventListener('click', function (event) {
+            if (event.target.classList.contains('gallery-cat-modal')) {
+                closeAllModals();
+            }
+        });
+    </script>
+{% endblock %}

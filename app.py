@@ -1,4 +1,6 @@
+import json
 import os
+import re
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, abort, session, Response, send_file
 from flask_sqlalchemy import SQLAlchemy
@@ -85,9 +87,72 @@ class PortfolioCategory(db.Model):
     slug = db.Column(db.String(100), nullable=False, unique=True)
     icon_class = db.Column(db.String(255), default='img/gallery_icons/default_icons.png')
     image_url = db.Column(db.String(255), nullable=False)
+    video_url = db.Column(db.String(255), nullable=True)
+    media_items = db.Column(db.Text, nullable=True)
     position = db.Column(db.Integer, default=0)
     show_on_projects = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def _looks_like_video(url):
+        if not url:
+            return False
+        lower = url.lower()
+        video_exts = ('.mp4', '.webm', '.ogg', '.mov', '.m4v', '.avi', '.mkv')
+        return any(ext in lower for ext in video_exts) or 'video' in lower or 'youtube.com' in lower or 'youtu.be' in lower or 'vimeo.com' in lower
+
+    @staticmethod
+    def normalize_media_item(item):
+        if isinstance(item, str):
+            value = item.strip()
+            if not value:
+                return None
+            return {
+                'type': 'video' if PortfolioCategory._looks_like_video(value) else 'image',
+                'url': value
+            }
+        if isinstance(item, dict):
+            url = str(item.get('url') or '').strip()
+            if not url:
+                return None
+            media_type = str(item.get('type') or '').lower()
+            if media_type not in {'image', 'video'}:
+                media_type = 'video' if PortfolioCategory._looks_like_video(url) else 'image'
+            return {'type': media_type, 'url': url}
+        return None
+
+    def get_media_items(self):
+        item_list = []
+        if self.media_items:
+            try:
+                parsed = json.loads(self.media_items)
+                if isinstance(parsed, list):
+                    item_list = parsed
+            except (TypeError, ValueError):
+                item_list = []
+            if not item_list:
+                for raw in re.split(r'[\n,]+', self.media_items):
+                    item = self.normalize_media_item(raw)
+                    if item:
+                        item_list.append(item)
+
+        if not item_list:
+            if self.image_url:
+                item_list.append({'type': 'image', 'url': self.image_url})
+            if self.video_url:
+                item_list.append({'type': 'video', 'url': self.video_url})
+
+        normalized = []
+        seen = set()
+        for item in item_list:
+            media_item = self.normalize_media_item(item)
+            if not media_item:
+                continue
+            if media_item['url'] in seen:
+                continue
+            seen.add(media_item['url'])
+            normalized.append(media_item)
+        return normalized
 
     def __repr__(self):
         return f"<PortfolioCategory {self.name}>"
@@ -97,7 +162,8 @@ class GalleryImage(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     category = db.Column(db.String(50), nullable=False) # e.g. living-room, bedroom
-    image_url = db.Column(db.String(255), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    video_url = db.Column(db.String(255), nullable=True)
     alt_text = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -207,6 +273,36 @@ class LeadershipMember(db.Model):
     def __repr__(self):
         return f"<LeadershipMember {self.name}>"
 
+
+class OngoingProject(db.Model):
+    __tablename__ = 'ongoing_projects'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    location = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(200), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    photo_urls = db.Column(db.Text, nullable=True)
+    video_urls = db.Column(db.Text, nullable=True)
+    featured_image = db.Column(db.String(255), nullable=True)
+    position = db.Column(db.Integer, default=0, nullable=False)
+    is_featured = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def get_photo_urls(self):
+        if not self.photo_urls:
+            return []
+        return [item.strip() for item in re.split(r'[\n,]+', self.photo_urls) if item.strip()]
+
+    def get_video_urls(self):
+        if not self.video_urls:
+            return []
+        return [item.strip() for item in re.split(r'[\n,]+', self.video_urls) if item.strip()]
+
+    def __repr__(self):
+        return f"<OngoingProject {self.title}>"
+
+
 class SiteSetting(db.Model):
     __tablename__ = 'site_settings'
 
@@ -248,19 +344,32 @@ if os.getenv('FLASK_ENV') != 'production':
     with app.app_context():
         db.create_all()
 
+        def ensure_table_column(table_name, column_name, column_type):
+            try:
+                db.session.execute(db.text(f"SELECT {column_name} FROM {table_name} LIMIT 1"))
+            except Exception:
+                db.session.rollback()
+                try:
+                    db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Error adding column {table_name}.{column_name}: {e}")
+
         # Seed/Update admin user in database (loaded from environment variables)
         try:
             admin_username = os.getenv('ADMIN_USERNAME', 'contact@utopiandecors.com')
             admin_password = os.getenv('ADMIN_PASSWORD', 'Hireberth@0302')
-            
+
             admin_user = User.query.filter_by(username=admin_username).first()
             if not admin_user:
                 admin_user = User(username=admin_username)
-                admin_user.set_password(admin_password)
                 db.session.add(admin_user)
+
+            if not admin_user.check_password(admin_password):
+                admin_user.set_password(admin_password)
                 db.session.commit()
             else:
-                admin_user.set_password(admin_password)
                 db.session.commit()
         except Exception as e:
             db.session.rollback()
@@ -274,50 +383,15 @@ if os.getenv('FLASK_ENV') != 'production':
             db.session.rollback()
             app.logger.error(f"Error seeding site logo setting: {e}")
 
-        # Ensure dynamic columns exist in SQLite table
+        # Ensure dynamic columns exist in SQLite tables
         for col_name, col_type in [("gallery_images", "TEXT"), ("category_id", "INTEGER"), ("subcategory_id", "INTEGER")]:
-            try:
-                db.session.execute(db.text(f"SELECT {col_name} FROM catalog_products LIMIT 1"))
-            except Exception:
-                db.session.rollback()
-                try:
-                    db.session.execute(db.text(f"ALTER TABLE catalog_products ADD COLUMN {col_name} {col_type}"))
-                    db.session.commit()
-                except Exception as e:
-                    db.session.rollback()
-
-        # Ensure position column exists in subcategories table
-        try:
-            db.session.execute(db.text("SELECT position FROM subcategories LIMIT 1"))
-        except Exception:
-            db.session.rollback()
-            try:
-                db.session.execute(db.text("ALTER TABLE subcategories ADD COLUMN position INTEGER DEFAULT 0"))
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-
-        # Ensure show_on_projects column exists in portfolio_categories table
-        try:
-            db.session.execute(db.text("SELECT show_on_projects FROM portfolio_categories LIMIT 1"))
-        except Exception:
-            db.session.rollback()
-            try:
-                db.session.execute(db.text("ALTER TABLE portfolio_categories ADD COLUMN show_on_projects BOOLEAN DEFAULT 1"))
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-
-        # Ensure uploaded_by column exists in catalogues table
-        try:
-            db.session.execute(db.text("SELECT uploaded_by FROM catalogues LIMIT 1"))
-        except Exception:
-            db.session.rollback()
-            try:
-                db.session.execute(db.text("ALTER TABLE catalogues ADD COLUMN uploaded_by TEXT"))
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
+            ensure_table_column('catalog_products', col_name, col_type)
+        ensure_table_column('gallery_images', 'video_url', 'TEXT')
+        ensure_table_column('subcategories', 'position', 'INTEGER DEFAULT 0')
+        ensure_table_column('portfolio_categories', 'show_on_projects', 'BOOLEAN DEFAULT 1')
+        ensure_table_column('portfolio_categories', 'video_url', 'TEXT')
+        ensure_table_column('portfolio_categories', 'media_items', 'TEXT')
+        ensure_table_column('catalogues', 'uploaded_by', 'TEXT')
 
         if HeroSlider.query.count() == 0:
             default_sliders = [
@@ -960,7 +1034,22 @@ def projects():
     """Renders the Projects Page."""
     current_category = request.args.get('category')
     images = GalleryImage.query.order_by(GalleryImage.created_at.desc()).all()
-    
+    ongoing_projects = OngoingProject.query.order_by(OngoingProject.position.asc(), OngoingProject.created_at.desc()).all()
+    ongoing_projects = [
+        {
+            'id': project.id,
+            'title': project.title,
+            'location': project.location,
+            'status': project.status,
+            'description': project.description,
+            'featured_image': project.featured_image or (project.get_photo_urls()[0] if project.get_photo_urls() else ''),
+            'photos': project.get_photo_urls(),
+            'videos': project.get_video_urls(),
+            'is_featured': project.is_featured,
+        }
+        for project in ongoing_projects
+    ]
+
     gallery_items = []
     for img in images:
         cat_name = img.category or "other"
@@ -975,7 +1064,7 @@ def projects():
             filter_classes.append('residential')
         elif f_class in ['office', 'restaurant', 'cafe', 'retail', 'commercial']:
             filter_classes.append('commercial')
-            
+             
         filter_class_str = " ".join(filter_classes)
 
         gallery_items.append({
@@ -1020,13 +1109,28 @@ def projects():
 
     portfolio_categories = [c for c in db_cats if getattr(c, 'show_on_projects', True)]
 
-    return render_template('pages/projects.html', portfolio_categories=portfolio_categories, gallery_items=gallery_items, current_category=current_category)
+    return render_template('pages/projects.html', portfolio_categories=portfolio_categories, gallery_items=gallery_items, current_category=current_category, ongoing_projects=ongoing_projects)
 
 @app.route('/collection')
 def portfolio():
     """Renders the Portfolio Page."""
     current_category = request.args.get('category')
     images = GalleryImage.query.order_by(GalleryImage.created_at.desc()).all()
+    ongoing_projects = OngoingProject.query.order_by(OngoingProject.position.asc(), OngoingProject.created_at.desc()).all()
+    ongoing_projects = [
+        {
+            'id': project.id,
+            'title': project.title,
+            'location': project.location,
+            'status': project.status,
+            'description': project.description,
+            'featured_image': project.featured_image or (project.get_photo_urls()[0] if project.get_photo_urls() else ''),
+            'photos': project.get_photo_urls(),
+            'videos': project.get_video_urls(),
+            'is_featured': project.is_featured,
+        }
+        for project in ongoing_projects
+    ]
     
     gallery_items = []
     for img in images:
@@ -1048,6 +1152,7 @@ def portfolio():
         gallery_items.append({
             'id': img.id,
             'image_url': img.image_url,
+            'video_url': img.video_url,
             'category': cat_name,
             'filter_class': filter_class_str,
             'alt': img.alt_text or "Gallery Image"
@@ -1103,7 +1208,7 @@ def portfolio():
             {"slug": "outdoor", "name": "OUTDOOR &<br>TERRACE SPACES", "image_url": "img/gallery/living_room/lr1.webp", "icon_class": "img/gallery_icons/14.png"}
         ]
         
-    return render_template('pages/portfolio.html', gallery_items=gallery_items, current_category=current_category, portfolio_categories=portfolio_categories)
+    return render_template('pages/portfolio.html', gallery_items=gallery_items, current_category=current_category, portfolio_categories=portfolio_categories, ongoing_projects=ongoing_projects)
 
 @app.route('/shop')
 def shop():
@@ -1419,6 +1524,160 @@ def admin_delete_leadership_member(id):
         flash('Failed to delete leadership member.', 'danger')
     return redirect(url_for('admin_leadership'))
 
+def _split_text_list(raw_value):
+    if not raw_value:
+        return []
+    return [item.strip() for item in re.split(r'[\n,]+', raw_value) if item.strip()]
+
+
+def _save_local_upload(file, folder_name):
+    if not file or not file.filename:
+        return None
+    try:
+        import time
+        name = secure_filename(file.filename)
+        if not name:
+            return None
+        stem, ext = os.path.splitext(name)
+        unique_name = f"{stem}_{int(time.time())}{ext}"
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        target_dir = os.path.join(basedir, 'static', 'uploads', folder_name)
+        os.makedirs(target_dir, exist_ok=True)
+        target_path = os.path.join(target_dir, unique_name)
+        file.seek(0)
+        file.save(target_path)
+        return f"/static/uploads/{folder_name}/{unique_name}"
+    except Exception as e:
+        app.logger.error(f"Local upload error for {folder_name}: {e}")
+        return None
+
+
+@app.route('/admin/ongoing-projects')
+@login_required
+def admin_ongoing_projects():
+    projects = OngoingProject.query.order_by(OngoingProject.position.asc(), OngoingProject.created_at.desc()).all()
+    return render_template('admin/ongoing_projects.html', projects=projects)
+
+
+@app.route('/admin/ongoing-projects/add', methods=['POST'])
+@login_required
+def admin_add_ongoing_project():
+    title = (request.form.get('title') or '').strip()
+    location = (request.form.get('location') or '').strip()
+    status = (request.form.get('status') or '').strip()
+    description = (request.form.get('description') or '').strip()
+    position = request.form.get('position', 0, type=int)
+    is_featured = 'is_featured' in request.form
+
+    if not title or not location:
+        flash('Project title and location are required.', 'danger')
+        return redirect(url_for('admin_ongoing_projects'))
+
+    photo_files = request.files.getlist('photos')
+    photo_urls = _split_text_list(request.form.get('photo_urls'))
+    for file in photo_files:
+        if file and file.filename:
+            saved_url = upload_image_to_cloudinary(file, folder_name='ongoing_projects')
+            if saved_url:
+                photo_urls.append(saved_url)
+            else:
+                local_url = _save_local_upload(file, 'ongoing_projects')
+                if local_url:
+                    photo_urls.append(local_url)
+
+    video_files = request.files.getlist('videos')
+    video_urls = _split_text_list(request.form.get('video_urls'))
+    for file in video_files:
+        if file and file.filename:
+            saved_url = _save_local_upload(file, 'ongoing_project_videos')
+            if saved_url:
+                video_urls.append(saved_url)
+
+    featured_image = (request.form.get('featured_image') or '').strip() or (photo_urls[0] if photo_urls else '')
+
+    project = OngoingProject(
+        title=title,
+        location=location,
+        status=status or 'In Progress',
+        description=description,
+        photo_urls=','.join(photo_urls),
+        video_urls=','.join(video_urls),
+        featured_image=featured_image,
+        position=position,
+        is_featured=is_featured,
+    )
+    db.session.add(project)
+    db.session.commit()
+    flash('Ongoing project added successfully.', 'success')
+    return redirect(url_for('admin_ongoing_projects'))
+
+
+@app.route('/admin/ongoing-projects/edit/<int:id>', methods=['POST'])
+@login_required
+def admin_edit_ongoing_project(id):
+    project = OngoingProject.query.get_or_404(id)
+    project.title = (request.form.get('title') or '').strip()
+    project.location = (request.form.get('location') or '').strip()
+    project.status = (request.form.get('status') or '').strip() or 'In Progress'
+    project.description = (request.form.get('description') or '').strip()
+    project.position = request.form.get('position', 0, type=int)
+    project.is_featured = 'is_featured' in request.form
+
+    if not project.title or not project.location:
+        flash('Project title and location are required.', 'danger')
+        return redirect(url_for('admin_ongoing_projects'))
+
+    photo_files = request.files.getlist('photos')
+    photo_urls = _split_text_list(request.form.get('photo_urls'))
+    for file in photo_files:
+        if file and file.filename:
+            saved_url = upload_image_to_cloudinary(file, folder_name='ongoing_projects')
+            if saved_url:
+                photo_urls.append(saved_url)
+            else:
+                local_url = _save_local_upload(file, 'ongoing_projects')
+                if local_url:
+                    photo_urls.append(local_url)
+    if photo_urls:
+        project.photo_urls = ','.join(photo_urls)
+    elif 'clear_photos' in request.form:
+        project.photo_urls = ''
+
+    video_files = request.files.getlist('videos')
+    video_urls = _split_text_list(request.form.get('video_urls'))
+    for file in video_files:
+        if file and file.filename:
+            saved_url = _save_local_upload(file, 'ongoing_project_videos')
+            if saved_url:
+                video_urls.append(saved_url)
+    if video_urls:
+        project.video_urls = ','.join(video_urls)
+    elif 'clear_videos' in request.form:
+        project.video_urls = ''
+
+    featured_image = (request.form.get('featured_image') or '').strip()
+    if featured_image:
+        project.featured_image = featured_image
+    elif project.photo_urls:
+        project.featured_image = _split_text_list(project.photo_urls)[0]
+    else:
+        project.featured_image = ''
+
+    db.session.commit()
+    flash('Ongoing project updated successfully.', 'success')
+    return redirect(url_for('admin_ongoing_projects'))
+
+
+@app.route('/admin/ongoing-projects/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_ongoing_project(id):
+    project = OngoingProject.query.get_or_404(id)
+    db.session.delete(project)
+    db.session.commit()
+    flash('Ongoing project deleted successfully.', 'success')
+    return redirect(url_for('admin_ongoing_projects'))
+
+
 @app.route('/admin/slider')
 @login_required
 def admin_slider():
@@ -1726,7 +1985,7 @@ def admin_gallery():
 @app.route('/admin/gallery/add', methods=['POST'])
 @login_required
 def admin_add_gallery():
-    """Endpoint for adding a new gallery image."""
+    """Endpoint for adding a new gallery media item."""
     category = request.form.get('category')
     custom_cat_name = None
     if category == 'other':
@@ -1734,68 +1993,97 @@ def admin_add_gallery():
         if custom_category:
             custom_cat_name = custom_category.strip()
             category = custom_cat_name.lower().replace(' ', '-')
-            
+
     alt_text = request.form.get('alt_text')
-    
+    video_url = (request.form.get('video_url') or '').strip()
+
     if not category:
         flash("Please select or enter a category.", "danger")
         return redirect(url_for('admin_gallery'))
-        
+
     image_file = request.files.get('image')
-    if not image_file or image_file.filename == '':
-        flash("Please upload an image.", "danger")
+    video_file = request.files.get('video')
+
+    image_url = ''
+    if image_file and image_file.filename:
+        image_url = upload_image_to_cloudinary(image_file, folder_name="gallery") or _save_local_upload(image_file, 'gallery')
+        if not image_url:
+            flash("Invalid image file format or upload failed.", "danger")
+            return redirect(url_for('admin_gallery'))
+
+    saved_video_url = ''
+    if video_file and video_file.filename:
+        saved_video_url = _save_local_upload(video_file, 'gallery_videos')
+        if not saved_video_url:
+            flash("Invalid video file format or upload failed.", "danger")
+            return redirect(url_for('admin_gallery'))
+
+    if not image_url and not video_url and not saved_video_url:
+        flash("Please upload an image or video or add a video URL.", "danger")
         return redirect(url_for('admin_gallery'))
-        
-    image_url = upload_image_to_cloudinary(image_file, folder_name="gallery")
-    if not image_url:
-        flash("Invalid file format or upload failed.", "danger")
-        return redirect(url_for('admin_gallery'))
-        
+
     try:
         new_img = GalleryImage(
             category=category,
-            image_url=image_url,
+            image_url=image_url or None,
+            video_url=saved_video_url or video_url or None,
             alt_text=alt_text
         )
         db.session.add(new_img)
         if not PortfolioCategory.query.filter_by(slug=category).first():
             cat_display = custom_cat_name.upper() if custom_cat_name else category.replace('-', ' ').upper()
-            new_cat = PortfolioCategory(name=cat_display, slug=category, image_url=image_url)
+            new_cat = PortfolioCategory(name=cat_display, slug=category, image_url=image_url or (saved_video_url or video_url or ''))
             db.session.add(new_cat)
         db.session.commit()
-        flash("Gallery image added successfully.", "success")
+        flash("Gallery media added successfully.", "success")
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error adding gallery image: {e}")
-        flash("Failed to add the gallery image.", "danger")
-        
+        app.logger.error(f"Error adding gallery media: {e}")
+        flash("Failed to add the gallery media.", "danger")
+
     return redirect(url_for('admin_gallery'))
 
 @app.route('/admin/gallery/edit/<int:id>', methods=['POST'])
 @login_required
 def admin_edit_gallery(id):
-    """Endpoint for editing a gallery image."""
+    """Endpoint for editing a gallery item."""
     img = GalleryImage.query.get_or_404(id)
     category = request.form.get('category')
     if category == 'other':
         custom_category = request.form.get('custom_category')
         if custom_category:
             category = custom_category.strip().lower().replace(' ', '-')
-            
+
     if category:
         img.category = category
-        
+
     img.alt_text = request.form.get('alt_text')
-    
+    img.video_url = (request.form.get('video_url') or '').strip() or (img.video_url if 'video_url' not in request.form else '')
+
     image_file = request.files.get('image')
-    if image_file and image_file.filename != '':
-        new_image_url = upload_image_to_cloudinary(image_file, folder_name="gallery")
+    if image_file and image_file.filename:
+        new_image_url = upload_image_to_cloudinary(image_file, folder_name="gallery") or _save_local_upload(image_file, 'gallery')
         if new_image_url:
             img.image_url = new_image_url
         else:
-            flash("Invalid file format or upload failed.", "danger")
+            flash("Invalid image file format or upload failed.", "danger")
             return redirect(url_for('admin_gallery'))
-            
+
+    video_file = request.files.get('video')
+    if video_file and video_file.filename:
+        saved_video_url = _save_local_upload(video_file, 'gallery_videos')
+        if saved_video_url:
+            img.video_url = saved_video_url
+        else:
+            flash("Invalid video file format or upload failed.", "danger")
+            return redirect(url_for('admin_gallery'))
+    elif 'video_url' in request.form and request.form.get('video_url', '').strip() == '' and 'clear_video' in request.form:
+        img.video_url = ''
+
+    if not img.image_url and not img.video_url:
+        flash("Gallery item must include at least one image or video.", "danger")
+        return redirect(url_for('admin_gallery'))
+
     try:
         db.session.commit()
         flash("Gallery image updated successfully.", "success")
@@ -1803,7 +2091,7 @@ def admin_edit_gallery(id):
         db.session.rollback()
         app.logger.error(f"Error updating gallery image: {e}")
         flash("Failed to update the gallery image.", "danger")
-        
+
     return redirect(url_for('admin_gallery'))
 
 @app.route('/admin/gallery/delete/<int:id>', methods=['POST'])
@@ -1968,31 +2256,84 @@ def admin_portfolio_categories():
     categories = PortfolioCategory.query.order_by(PortfolioCategory.position).all()
     return render_template('admin/portfolio_categories.html', categories=categories)
 
+
+def _parse_portfolio_media_entries(request_obj, existing_media=None):
+    media_entries = []
+    if existing_media:
+        media_entries = [PortfolioCategory.normalize_media_item(item) for item in existing_media if PortfolioCategory.normalize_media_item(item)]
+
+    def append_url(url_value, source_type=None):
+        if not url_value:
+            return
+        url = url_value.strip()
+        if not url:
+            return
+        item = {'type': source_type or ('video' if PortfolioCategory._looks_like_video(url) else 'image'), 'url': url}
+        if item['url'] not in {entry['url'] for entry in media_entries}:
+            media_entries.append(item)
+
+    image_file = request_obj.files.get('image')
+    if image_file and image_file.filename != '':
+        image_url = upload_image_to_cloudinary(image_file, folder="portfolio_categories") or _save_local_upload(image_file, 'portfolio_categories')
+        if image_url:
+            append_url(image_url, 'image')
+
+    video_file = request_obj.files.get('video')
+    if video_file and video_file.filename != '':
+        saved_video_url = _save_local_upload(video_file, 'portfolio_category_videos')
+        if saved_video_url:
+            append_url(saved_video_url, 'video')
+
+    for media_file in request_obj.files.getlist('media_files'):
+        if not media_file or not getattr(media_file, 'filename', ''):
+            continue
+        media_filename = getattr(media_file, 'filename', '') or ''
+        if not media_filename:
+            continue
+        if media_filename.lower().endswith(('.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv', '.ogg')):
+            uploaded = _save_local_upload(media_file, 'portfolio_category_videos')
+            append_url(uploaded, 'video')
+        else:
+            uploaded = upload_image_to_cloudinary(media_file, folder="portfolio_categories") or _save_local_upload(media_file, 'portfolio_categories')
+            append_url(uploaded, 'image')
+
+    for raw_url in request_obj.form.getlist('media_urls'):
+        append_url(raw_url)
+
+    legacy_url = (request_obj.form.get('video_url') or '').strip()
+    if legacy_url:
+        append_url(legacy_url, 'video')
+
+    return media_entries
+
 @app.route('/admin/portfolio-categories/add', methods=['POST'])
 @login_required
 def add_portfolio_category():
-    name = request.form.get('name')
-    slug = request.form.get('slug')
+    name = (request.form.get('name') or '').strip()
+    slug = (request.form.get('slug') or '').strip()
     position = request.form.get('position', 0, type=int)
+
+    if not name or not slug:
+        flash('Name and slug are required.', 'danger')
+        return redirect(url_for('admin_portfolio_categories'))
 
     # Icon inputs: file, url, or css class (priority: uploaded file -> icon_url -> css class)
     icon_file = request.files.get('icon')
     icon_url_field = (request.form.get('icon_url') or '').strip()
     icon_class_field = (request.form.get('icon_class') or '').strip()
 
-    image_file = request.files.get('image')
-    image_url = None
-    if image_file and image_file.filename != '':
-        image_url = upload_image_to_cloudinary(image_file, folder="portfolio_categories")
+    media_entries = _parse_portfolio_media_entries(request)
+    image_url = next((item['url'] for item in media_entries if item['type'] == 'image'), '')
+    video_url = next((item['url'] for item in media_entries if item['type'] == 'video'), '')
 
-    if not image_url:
-        flash('Background image is required.', 'danger')
+    if not image_url and not video_url:
+        flash('Please upload a background image or video, or provide a media URL.', 'danger')
         return redirect(url_for('admin_portfolio_categories'))
 
     # Determine stored icon value
     icon_value = ''
     if icon_file and icon_file.filename != '':
-        uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons")
+        uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons") or _save_local_upload(icon_file, 'portfolio_category_icons')
         if uploaded_icon:
             icon_value = uploaded_icon
     elif icon_url_field:
@@ -2006,7 +2347,9 @@ def add_portfolio_category():
         name=name,
         slug=slug,
         icon_class=icon_value,
-        image_url=image_url,
+        image_url=image_url or '',
+        video_url=video_url or '',
+        media_items=json.dumps(media_entries) if media_entries else None,
         position=position,
         show_on_projects=show_on_projects
     )
@@ -2019,8 +2362,8 @@ def add_portfolio_category():
 @login_required
 def edit_portfolio_category(id):
     cat = PortfolioCategory.query.get_or_404(id)
-    cat.name = request.form.get('name')
-    cat.slug = request.form.get('slug')
+    cat.name = (request.form.get('name') or '').strip()
+    cat.slug = (request.form.get('slug') or '').strip()
     cat.position = request.form.get('position', 0, type=int)
     cat.show_on_projects = ('show_on_projects' in request.form)
 
@@ -2040,7 +2383,7 @@ def edit_portfolio_category(id):
         cat.icon_class = ''
     else:
         if icon_file and icon_file.filename != '':
-            uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons")
+            uploaded_icon = upload_image_to_cloudinary(icon_file, folder="portfolio_category_icons") or _save_local_upload(icon_file, 'portfolio_category_icons')
             if uploaded_icon:
                 # delete old icon if it looks like a stored file
                 if cat.icon_class:
@@ -2053,22 +2396,41 @@ def edit_portfolio_category(id):
                 flash('Icon upload failed. Please try a different file.', 'danger')
                 return redirect(url_for('admin_portfolio_categories'))
         elif icon_url_field:
-            # if a URL provided, set it directly (do not delete existing stored image automatically)
             cat.icon_class = icon_url_field
         elif icon_class_field:
             cat.icon_class = icon_class_field
 
-    # Handle background image update
-    file = request.files.get('image')
-    if file and file.filename != '':
-        new_image_url = upload_image_to_cloudinary(file, folder="portfolio_categories")
-        if new_image_url:
-            if cat.image_url:
-                try:
-                    delete_image_from_cloudinary(cat.image_url)
-                except Exception:
-                    pass
-            cat.image_url = new_image_url
+    # Handle background image update and multi-media entries.
+    media_entries = _parse_portfolio_media_entries(request, cat.get_media_items())
+    image_url = next((item['url'] for item in media_entries if item['type'] == 'image'), '')
+    video_url = next((item['url'] for item in media_entries if item['type'] == 'video'), '')
+
+    if image_url:
+        cat.image_url = image_url
+    elif 'clear_media' in request.form:
+        cat.image_url = ''
+
+    if video_url:
+        cat.video_url = video_url
+    elif 'clear_video' in request.form:
+        cat.video_url = ''
+
+    if not image_url and not video_url and not cat.image_url and not cat.video_url:
+        flash('Please keep an image or a video for the category.', 'danger')
+        return redirect(url_for('admin_portfolio_categories'))
+
+    if media_entries:
+        cat.media_items = json.dumps(media_entries)
+    elif 'clear_media' in request.form:
+        cat.media_items = ''
+
+    if not cat.name or not cat.slug:
+        flash('Name and slug are required.', 'danger')
+        return redirect(url_for('admin_portfolio_categories'))
+
+    if not cat.image_url and not cat.video_url:
+        flash('Please keep either an image or a video for the category background.', 'danger')
+        return redirect(url_for('admin_portfolio_categories'))
 
     db.session.commit()
     flash('Portfolio category updated successfully!', 'success')

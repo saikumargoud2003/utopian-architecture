@@ -238,112 +238,133 @@
   /*             Gallery & Lightbox             */
   /* ========================================= */
   $(document).ready(function() {
-    // Only execute if we are on a page with gallery filters/lightbox
-    if (!$('.gallery-filter-btn').length && !$('.gallery-item').length) return;
+    if (!$('.gallery-item').length) return;
 
     var $filterBtns = $('.gallery-filter-btn');
     var $galleryItems = $('.gallery-item');
     var $lightbox = $('#gallery-lightbox');
+    if (!$lightbox.length) return;
+
     var $lightboxImg = $('.lightbox-img');
+    var $lightboxVideo = $('.lightbox-video');
     var $lightboxCounter = $('.lightbox-counter');
-    var $activeItems = $galleryItems; // Keeps track of currently visible items for sliding
+    var $activeItems = $galleryItems;
     var currentIndex = 0;
 
-    // 1. Filtering Logic
-    $filterBtns.on('click', function() {
-      var filterValue = $(this).attr('data-filter');
-      
-      // Update active tab styling
-      $filterBtns.removeClass('active');
-      $(this).addClass('active');
+    function getGalleryKey(item) {
+      var mediaType = item.data('media-type') || 'image';
+      return mediaType === 'video' ? (item.data('video-url') || item.find('video source').attr('src') || '') : (item.data('image-url') || item.find('img').attr('src') || '');
+    }
 
-      if (filterValue === 'all') {
-        $galleryItems.fadeIn(300);
-        $activeItems = $galleryItems;
+    function setLightboxMedia(item) {
+      var mediaType = item.data('media-type') || 'image';
+      var imageUrl = item.data('image-url') || item.find('img').attr('src') || '';
+      var altText = item.find('img').attr('alt') || 'Gallery Preview';
+      var videoUrl = item.data('video-url') || item.find('video source').attr('src') || '';
+
+      if (mediaType === 'video') {
+        $lightboxImg.hide();
+        $lightboxVideo.show();
+        $lightboxVideo.find('source').attr('src', videoUrl);
+        $lightboxVideo.get(0).load();
       } else {
-        $galleryItems.each(function() {
-          var category = $(this).attr('data-category');
-          var categories = category ? category.split(' ') : [];
-          if (categories.indexOf(filterValue) !== -1) {
-            $(this).fadeIn(300);
-          } else {
-            $(this).fadeOut(200);
-          }
-        });
-        // Update active items list to exclude hidden ones
-        $activeItems = $galleryItems.filter(function() {
-          var category = $(this).attr('data-category');
-          var categories = category ? category.split(' ') : [];
-          return categories.indexOf(filterValue) !== -1;
-        });
+        $lightboxVideo.hide();
+        $lightboxVideo.get(0).pause();
+        $lightboxVideo.find('source').attr('src', '');
+        $lightboxVideo.get(0).load();
+        $lightboxImg.show().attr('src', imageUrl).attr('alt', altText);
       }
-    });
+    }
 
-    // 2. Lightbox Show Logic
-    $galleryItems.on('click', function() {
-      // Find the index of the clicked item relative to the currently active (filtered) items
-      var clickedSrc = $(this).find('img').attr('src');
-      currentIndex = $activeItems.map(function() {
-        return $(this).find('img').attr('src');
-      }).get().indexOf(clickedSrc);
-
-      if (currentIndex === -1) {
-        currentIndex = 0;
-      }
-
-      openLightbox();
-    });
+    function updateCounter() {
+      var total = $activeItems.length || 1;
+      $lightboxCounter.text((currentIndex + 1) + ' / ' + total);
+    }
 
     function openLightbox() {
-      if ($activeItems.length === 0) return;
+      if (!$activeItems.length) return;
       var currentItem = $activeItems.eq(currentIndex);
-      var imgSrc = currentItem.find('img').attr('src');
-      var imgAlt = currentItem.find('img').attr('alt');
-
-      $lightboxImg.attr('src', imgSrc).attr('alt', imgAlt);
+      setLightboxMedia(currentItem);
       updateCounter();
-
       $lightbox.addClass('active').attr('aria-hidden', 'false');
-      $('body').css('overflow', 'hidden'); // Lock background scroll
+      $('body').css('overflow', 'hidden');
     }
 
     function closeLightbox() {
       $lightbox.removeClass('active').attr('aria-hidden', 'true');
-      $('body').css('overflow', ''); // Restore background scroll
+      $('body').css('overflow', '');
+      if ($lightboxVideo.length) {
+        var videoEl = $lightboxVideo.get(0);
+        if (videoEl) {
+          videoEl.pause();
+          videoEl.currentTime = 0;
+        }
+      }
     }
 
-    function updateCounter() {
-      var displayIndex = currentIndex + 1;
-      var total = $activeItems.length;
-      $lightboxCounter.text(displayIndex + ' / ' + total);
-    }
-
-    // 3. Slider Navigation Logic
-    function nextImage() {
-      if ($activeItems.length <= 1) return;
-      currentIndex = (currentIndex + 1) % $activeItems.length;
-      updateLightboxImage();
-    }
-
-    function prevImage() {
-      if ($activeItems.length <= 1) return;
-      currentIndex = (currentIndex - 1 + $activeItems.length) % $activeItems.length;
-      updateLightboxImage();
-    }
-
-    function updateLightboxImage() {
+    function updateLightboxFromIndex() {
+      if (!$activeItems.length) return;
       var currentItem = $activeItems.eq(currentIndex);
-      var imgSrc = currentItem.find('img').attr('src');
-      var imgAlt = currentItem.find('img').attr('alt');
-      
-      // Smooth cross-fade effect in lightbox
-      $lightboxImg.fadeOut(150, function() {
-        $(this).attr('src', imgSrc).attr('alt', imgAlt).fadeIn(150);
-      });
+      setLightboxMedia(currentItem);
       updateCounter();
     }
 
-    // Event Listeners for Lightbox
+    function nextImage() {
+      if (!$activeItems.length) return;
+      currentIndex = (currentIndex + 1) % $activeItems.length;
+      updateLightboxFromIndex();
+    }
+
+    function prevImage() {
+      if (!$activeItems.length) return;
+      currentIndex = (currentIndex - 1 + $activeItems.length) % $activeItems.length;
+      updateLightboxFromIndex();
+    }
+
+    if ($filterBtns.length) {
+      $filterBtns.on('click', function() {
+        var filterValue = $(this).attr('data-filter');
+        $filterBtns.removeClass('active');
+        $(this).addClass('active');
+
+        if (filterValue === 'all') {
+          $galleryItems.fadeIn(300);
+          $activeItems = $galleryItems;
+        } else {
+          $galleryItems.each(function() {
+            var categories = $(this).attr('data-category') ? $(this).attr('data-category').split(' ') : [];
+            if (categories.indexOf(filterValue) !== -1) {
+              $(this).fadeIn(300);
+            } else {
+              $(this).fadeOut(200);
+            }
+          });
+          $activeItems = $galleryItems.filter(function() {
+            var categories = $(this).attr('data-category') ? $(this).attr('data-category').split(' ') : [];
+            return categories.indexOf(filterValue) !== -1;
+          });
+        }
+
+        currentIndex = 0;
+        if ($activeItems.length) {
+          updateLightboxFromIndex();
+        }
+      });
+    }
+
+    $galleryItems.on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var clickedKey = getGalleryKey($(this));
+      currentIndex = $activeItems.map(function() {
+        return getGalleryKey($(this));
+      }).get().indexOf(clickedKey);
+
+      if (currentIndex === -1) currentIndex = 0;
+      openLightbox();
+    });
+
     $('.lightbox-close').on('click', function(e) {
       e.stopPropagation();
       closeLightbox();
@@ -359,34 +380,24 @@
       prevImage();
     });
 
-    // Close on clicking the dark background overlay itself, but not the image
     $lightbox.on('click', function(e) {
       if ($(e.target).is('#gallery-lightbox') || $(e.target).is('.lightbox-content')) {
         closeLightbox();
       }
     });
 
-    // Keyboard Navigation
     $(document).on('keydown', function(e) {
       if (!$lightbox.hasClass('active')) return;
-
-      if (e.key === 'ArrowRight') {
-        nextImage();
-      } else if (e.key === 'ArrowLeft') {
-        prevImage();
-      } else if (e.key === 'Escape') {
-        closeLightbox();
-      }
+      if (e.key === 'ArrowRight') nextImage();
+      else if (e.key === 'ArrowLeft') prevImage();
+      else if (e.key === 'Escape') closeLightbox();
     });
 
-    // Auto-activate filter from URL parameter on load
     var urlParams = new URLSearchParams(window.location.search);
     var urlCategory = urlParams.get('category');
-    if (urlCategory) {
+    if (urlCategory && $filterBtns.length) {
       var $targetBtn = $filterBtns.filter('[data-filter="' + urlCategory + '"]');
-      if ($targetBtn.length) {
-        $targetBtn.trigger('click');
-      }
+      if ($targetBtn.length) $targetBtn.trigger('click');
     }
   });
 
